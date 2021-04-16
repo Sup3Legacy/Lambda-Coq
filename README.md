@@ -1,1 +1,1 @@
-# Lamnda-Coq
+# Lambda-Coq
