@@ -114,7 +114,7 @@ Qed.
 
 
 (* Question 3 *)
-
+(* TODO change this to a unique depth-shift. *)
 Fixpoint correct_free_variable_depth (t: DeBruijn) (depth: nat) :=
     match t with
     | Var n => if depth <=? n then Var (n + 1) else Var n
@@ -181,6 +181,13 @@ Proof.
     rewrite <- H. reflexivity.
 Qed.
 
+Lemma aux_1_1 : forall (t1: DeBruijn), forall (t2: DeBruijn), forall (u1: DeBruijn), forall (u2: DeBruijn),
+    t1 = u1 -> t2 = u2 -> Application t1 t2 = Application u1 u2.
+Proof.
+    intros.
+    rewrite H. rewrite H0. reflexivity.
+Qed.
+
 Lemma aux_2_0 : forall (t: DeBruijn), forall (n: nat), forall (d: nat),
     max_var_smaller_n_depth t n (d + 1) -> max_var_smaller_n_depth t (n + 1) d.
 Proof.
@@ -245,7 +252,7 @@ Proof.
 Qed.
 
 Theorem substitution_aux : forall (t: DeBruijn), forall (n: nat), 
-    C[n](t) -> forall (u: DeBruijn), substitution t n u = t.
+    C[n](t) -> forall (u: DeBruijn), t[n <- u] = t.
 Proof.
     intro t. 
     induction t.
@@ -261,7 +268,7 @@ Proof.
 Qed.
 
 Theorem substitution_thm : forall (t: DeBruijn),
-    closed t -> forall (u: DeBruijn), forall (n: nat), substitution t n u = t.
+    closed t -> forall (u: DeBruijn), forall (n: nat), t[n <- u] = t.
 Proof.
     intros.
     apply substitution_aux.
@@ -271,29 +278,59 @@ Qed.
 
 (* Question 4 *)
 
-Fixpoint substitution_multiple_aux (t: DeBruijn) (base: nat) (index: nat) (terms: list DeBruijn) :=
+Fixpoint correct_free_variable_multiple (terms: list DeBruijn) :=
     match terms with
-    | [] => t
-    | h :: q => substitution_multiple_aux (substitution t (base + index) h) base (index + 1) q
+    | [] => []
+    | t :: q => (correct_free_variable t) :: (correct_free_variable_multiple q)
+    end
+.
+
+(* `Var 0` is the default value *)
+Fixpoint substitution_multiple_aux (t: DeBruijn) (base: nat) (terms: list DeBruijn) : DeBruijn :=
+    match t with
+    | Var n => if ((Nat.leb base n) && (Nat.ltb n (base + (length terms)))) then (List.nth (n - base) terms (Var 0)) else Var n
+    | Lambda tp => Lambda (substitution_multiple_aux tp (base + 1) (correct_free_variable_multiple terms))
+    | Application tp1 tp2 => Application (substitution_multiple_aux tp1 base terms) (substitution_multiple_aux tp2 base terms)
     end
 .
 
 Definition substitution_multiple (t: DeBruijn) (base: nat) (terms: list DeBruijn) :=
-    substitution_multiple_aux t base 0 terms
+    substitution_multiple_aux t base terms
 .
 
 Notation "t [ y <l- l ]" := (substitution_multiple t y l) (at level 0).
 
-Theorem substitution_multiple_nil : forall (t: DeBruijn), forall (n: nat),
-    t[n <l- []] = t.
+Lemma substitution_0_0 : forall (i: nat), forall (n: nat),
+    (Nat.leb i n) && (Nat.ltb n (i + 0)) = false.
 Proof.
     intros.
+    assert (i + 0 = i). lia.
+    rewrite H.
+    unfold Nat.leb. unfold Nat.ltb. unfold Nat.leb.
+Admitted.
+
+Theorem nil_substitution : forall (t: DeBruijn), forall (i: nat),
+    t[i <l- []] = t.
+Proof.
+    intro t.
+    induction t.
     unfold substitution_multiple.
-    unfold substitution_multiple_aux.
-    reflexivity.
+    unfold substitution_multiple_aux. intros.
+    simpl. intros. 
+    rewrite substitution_0_0. reflexivity.
+    simpl. move => i.
+    assert ((t) [i + 1 <l- []] = t).
+    exact (IHt (i + 1)). 
+    apply aux_1_0 with (u := t [i + 1 <l- []]) (t := t). exact H.
+    simpl. move => i.
+    apply aux_1_1 with (t1 := t1[i <l- []]) (t2 := t2[i <l- []]) (u1 := t1) (u2 := t2).
+    exact (IHt1 (i)). exact (IHt2 (i)).
 Qed.
 
-Theorem substitution_multiple_semi_closed : forall (t: DeBruijn), forall (n: nat), 
-    forall (terms: list DeBruijn),
-    C[n](t) -> substitution_multiple t n terms = t.
+Theorem C_substitution : forall (t: DeBruijn), forall (n: nat), 
+    C[n](t) -> forall (terms: list DeBruijn), t[n <l- terms] = t.
+Proof.
+    intros.
+    induction t.
+    admit.
 
