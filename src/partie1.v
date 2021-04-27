@@ -631,19 +631,65 @@ Proof.
     apply IHu. exact H1. apply (cm_truc u a a0). exact Cm.
 Qed.
 
+Lemma heredite_var : forall (n: nat), forall (n0: nat),
+    C[n](Var n0) -> C[n + 1](Var (n0 + 1)).
+Proof.
+    move => n n0.
+    unfold max_var_smaller_n.
+    simpl. lia.
+Qed.
+
+Lemma stupid_1 : forall(n0: nat),
+    (0 <=? n0) = false -> False.
+Proof.
+    simpl. intuition.
+Qed.
+
+Lemma heredite_correct_variable_aux : forall (t: DeBruijn), forall (n: nat),
+    forall (d: nat), forall (dp: nat),
+    max_var_smaller_n_depth t n d -> 
+        max_var_smaller_n_depth (correct_free_variable_depth t dp) (n + 1) d.
+Proof.
+    induction t.
+    simpl.
+    move => n0 d dp.
+    move => cond.
+    simpl.
+    case_eq (dp <=? n).
+    move => Cond.
+    simpl. lia.
+    move => Cond.
+    simpl. lia.
+
+    move => n d dp.
+    unfold max_var_smaller_n. simpl.
+    unfold max_var_smaller_n in IHt. simpl in IHt.
+    unfold correct_free_variable in IHt.
+    exact (IHt n (d + 1) (dp + 1)).
+
+    move => n d dp.
+    unfold max_var_smaller_n. simpl.
+    split. 
+    apply (IHt1 n d dp).
+    destruct H.
+    exact H.
+
+    apply (IHt2 n d dp).
+    destruct H.
+    exact H0.
+
+    move => n d dp.
+    unfold max_var_smaller_n. simpl.
+    exact (IHt n d dp).
+Qed.
+
 Lemma heredite_correct_variable : forall (t: DeBruijn), forall (n: nat),
-    C[n](t) -> C[n+1](correct_free_variable t).
+    C[n](t) -> C[n + 1](correct_free_variable t).
 Proof.
     move => t n Cn.
-    induction t.
-    simpl. 
-    unfold correct_free_variable.
-    unfold correct_free_variable_depth.
-    admit.
-    admit.
-    admit.
-    admit.
-Admitted.
+    apply heredite_correct_variable_aux.
+    exact Cn.
+Qed.
 
 
 Lemma substitution_multiple_commut : forall (t: DeBruijn), forall (n: nat), forall (u1: DeBruijn), 
@@ -685,17 +731,43 @@ Theorem substitution_multiple_C_1 : forall (t: DeBruijn), forall (n: nat),
     forall (terms: list DeBruijn),
     S(t) -> Cm[n](terms) -> t[n <-- terms] = (t[n+1 <-- List.tl terms])[n <- List.hd (Var n) terms].
 Proof.
-    move => t n terms S Cm.
     induction terms.
+    move => S C.
     simpl. rewrite (safe_deprotect t S).
     assert (t[n <- Var n] = t -> t = t[n <- Var n]). intuition.
     apply H.
     apply (substitute_equal t n S).
 
-    assert (List.tl (a::terms) = terms). trivial. rewrite H.
-    assert (List.hd (Var n) (a :: terms) = a). trivial. rewrite H0.
-
     simpl.
+    
+    induction t.
+    move => S Cm.
+    (* This is where the world ends... *)
+
+    move => n0 n u1 u2 S C2.
+    case_eq (n0 =? n + 1).
+    move => egalite.
+    apply stupid_0 in egalite.
+    simpl. assert (S(deprotect u2)). apply deprotect_correction.
+    assert (C[n](deprotect u2)). apply (C_deprotect u2 n). exact C2.
+    assert ((deprotect u2)[n <- u1] = deprotect (deprotect u2)).
+    apply (substitution_aux (deprotect u2) n H0 u1).
+    rewrite -> deprotect_involutive in H1.
+    intuition.
+    simpl. intro. reflexivity.
+    move => n u1 u2 S C. assert (S(t)). intuition.
+    assert (C[n + 1](u2)). apply (heredite_1 u2 n C). simpl.
+    apply aux_1_0. (* assert (n + 1 + 1 = n + 2). lia. rewrite H1. *) 
+    assert (C[n + 1](correct_free_variable u2)). apply (heredite_correct_variable u2 n C).
+    rewrite (IHt (n + 1) (correct_free_variable u1) (correct_free_variable u2) H H1). reflexivity.
+    move => n u1 u2 S C2.
+    simpl. apply aux_1_1.
+    assert (S(t1)). unfold protected in S. intuition.
+    apply (IHt1 n u1 u2 H C2).
+    assert (S(t2)). unfold protected in S. intuition.
+    apply (IHt2 n u1 u2 H C2).
+    move => n u1 u2 S C2.
+    simpl. contradiction S. simpl. trivial.
 
     (*apply (sub_preserves_equality 
         (substitution_multiple t (n + 1) terms)
