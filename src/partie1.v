@@ -40,12 +40,6 @@ Fixpoint protected (t: DeBruijn) : Prop :=
 (* This is a safe term, without any protected subterm *)
 Notation "S( t )" := (~(protected t)).
 
-Lemma protect_correctuion_aux_0_0 : 
-    (False \/ False) = False.
-Proof.
-    admit.
-Admitted.
-
 Lemma destruct_false_or : forall (P: Prop), forall (Q: Prop),
     ~(P \/ Q) <-> ~P /\ ~Q.
 Proof.
@@ -485,15 +479,66 @@ Proof.
     reflexivity.
 Qed.
 
+(*
+Lemma aux_0 : forall (n: nat), forall (n0: nat),
+    C[n](Var n0) -> n > n0.
+Proof.
+    intros.
+    induction n.
+    unfold max_var_smaller_n in H.
+    unfold max_var_smaller_n_depth in H.
+    simpl in H. exact H.
+    unfold max_var_smaller_n in H.
+    unfold max_var_smaller_n_depth in H.
+    unfold max_var_smaller_n in IHn.
+    unfold max_var_smaller_n_depth in IHn.
+    simpl in H. lia.
+Qed.
+
+
+(* Thanks a lot to Samuel Vivien! *)
+Lemma aux_0_0 : forall (n: nat), forall (n0: nat),
+    n > n0 -> (Nat.eqb n0 n) = false.
+Proof.
+    intros.
+    destruct (PeanoNat.Nat.eqb_neq n0 n).
+    apply H1.
+    lia.
+Qed.
+
+Lemma aux_0_1 : forall (n: nat), forall (n0: nat), forall (u: DeBruijn),
+    C[n](Var n0) -> (if n0 =? n then u else Var n0) = Var n0.
+Proof.
+    intros.
+    rewrite aux_0_0. apply aux_0. exact H.
+    reflexivity.
+Qed.
+*)
+
+Lemma stupid_0 : forall (n: nat), forall (n0: nat),
+    (n =? n0) = true -> n = n0.
+Proof.
+    intros.
+    admit.
+Admitted.
+
+
 Lemma substitute_equal : forall (t: DeBruijn), forall (n: nat),
     S(t) -> t[n <- Var n] = t.
 Proof.
     move => t.
     induction t.
-    simpl. admit.
+    move => n0.
+    move => S.
     simpl.
+    case_eq (n =? n0).
+    move => egalite.
+    apply stupid_0 in egalite.
+    rewrite <- egalite. simpl. reflexivity.
+    intro. simpl. reflexivity.  
+
     move => n S. assert (correct_free_variable (Var n) = Var (n + 1)).
-    unfold correct_free_variable. simpl. reflexivity. rewrite H.
+    unfold correct_free_variable. simpl. reflexivity. simpl. rewrite H.
     rewrite (IHt (n + 1)). exact S. reflexivity.
     move => n S.
     simpl. rewrite IHt1. 
@@ -504,7 +549,7 @@ Proof.
     destruct S. exact H0. reflexivity.
     move => n. unfold protected.
     contradiction.
-Admitted.
+Qed.
 
 Lemma cm_add : forall (u: list DeBruijn), forall (n: nat), forall (a: DeBruijn),
     Cm[n](a::u) -> C_multiple u n.
