@@ -474,7 +474,7 @@ Fixpoint C_multiple (u: list DeBruijn) (n: nat) : Prop :=
     end
 .
 
-Notation "Cm[ n ]( u )" := (C_multiple u n).
+Notation "Cm[ n ]( u )" := (C_multiple (List.tl u) n).
 
 Lemma sub_preserves_equality : forall (t: DeBruijn), forall (u: DeBruijn), 
     forall (n: nat), forall (v: DeBruijn),
@@ -485,18 +485,134 @@ Proof.
     reflexivity.
 Qed.
 
-Theorem substitution_multiple_C_1 : forall (t: DeBruijn), forall (n: nat),
-    forall (u: DeBruijn), forall (terms: list DeBruijn),
-    S(t) -> Cm[n](terms) -> t[n <-- u::terms] = (t[n+1 <-- terms])[n <- u].
+Lemma substitute_equal : forall (t: DeBruijn), forall (n: nat),
+    S(t) -> t[n <- Var n] = t.
 Proof.
-    move => t n u terms S Cm.
-    induction terms.
-    simpl. rewrite (safe_deprotect t S). reflexivity.
+    move => t.
+    induction t.
+    simpl. admit.
+    simpl.
+    move => n S. assert (correct_free_variable (Var n) = Var (n + 1)).
+    unfold correct_free_variable. simpl. reflexivity. rewrite H.
+    rewrite (IHt (n + 1)). exact S. reflexivity.
+    move => n S.
+    simpl. rewrite IHt1. 
+    simpl in S. apply destruct_false_or in S.
+    destruct S. exact H.
+    simpl. rewrite IHt2.
+    simpl in S. apply destruct_false_or in S.
+    destruct S. exact H0. reflexivity.
+    move => n. unfold protected.
+    contradiction.
+Admitted.
 
-    simpl. assert (n + 1 + 1 = n + 2). lia. rewrite H.
-    apply (sub_preserves_equality 
-        (substitution (substitution_multiple t (n + 2) terms) (n + 1) a)
-        ((substitution_multiple t (n + 2) terms) [n + 1 <- a]) (n) u).
+Lemma cm_add : forall (u: list DeBruijn), forall (n: nat), forall (a: DeBruijn),
+    Cm[n](a::u) -> C_multiple u n.
+Proof.
+    move => u n a Cm.
+    unfold C_multiple in Cm.
+    unfold C_multiple.
+    trivial.
+Qed.
+
+Lemma cm_completion : forall(u : list DeBruijn), forall(a: DeBruijn), forall (n: nat),
+    Cm[n](u) -> C[n](List.hd (Var 0) u) -> Cm[n](a :: u).
+Proof.
+    move => u a n Cm C.
+    induction u.
+    trivial.
+    simpl.
+    split.
+    simpl in C. exact C.
+    apply (cm_add u n a0).
+    exact Cm.
+Qed.
+
+Lemma list_prop_completion : forall (t: list DeBruijn), forall (a: DeBruijn),
+    forall (f: DeBruijn -> Prop),
+    (List.Forall f t) -> f a -> (List.Forall f (a :: t)).
+Proof.
+    move => t a f.
+    intuition.
+Qed.
+
+Lemma cm_conversion : forall (u: list DeBruijn), forall(n: nat),
+    C_multiple u n -> Cm[n](u).
+Proof.
+    move => u n.
+    induction u.
+    simpl. trivial.
+    simpl. intuition.
+Qed.
+
+Lemma cm_truc : forall (u: list DeBruijn), forall (a: DeBruijn), forall (b: DeBruijn),
+    forall (n: nat),
+    Cm[n](a :: b :: u) -> C[n](b).
+Proof.
+    intros.
+    unfold C_multiple in H. simpl in H.
+    destruct H.
+    exact H.
+Qed.
+
+Lemma cm_truc_2 : forall (u: list DeBruijn), forall (a: DeBruijn), forall (b: DeBruijn),
+    forall (n: nat),
+    Cm[n](a :: b :: u) -> Cm[n](u).
+Proof.
+    intros.
+    unfold C_multiple in H. simpl in H.
+    destruct H. apply (cm_conversion u n).
+    fold C_multiple in H0.
+    exact H0.
+Qed.
+
+Lemma cm_truc_3 : forall (u: list DeBruijn), forall (a: DeBruijn), forall (n: nat),
+    Cm[n](a :: u) -> Cm[n](u).
+Proof.
+    induction u.
+    simpl. intuition.
+    move => a0 n.
+    simpl. intuition.
+Qed.
+
+Lemma cm_meaning : forall (u: list DeBruijn), forall (n: nat),
+    Cm[n](u) -> List.Forall (fun x => C[n](x)) (List.tl u).
+Proof.
+    move => u n Cm.
+    induction u. simpl.
+    intuition.
+    
+    simpl.
+    induction u. intuition. 
+    apply (list_prop_completion u a0 (max_var_smaller_n^~ n)).
+    assert (Cm[n](u)). apply (cm_truc_2 u a a0 n). exact Cm.
+    assert C[n](a0). apply (cm_truc u a a0 n). exact Cm.
+    assert (Cm[n](a0::u)). apply (cm_truc_3 (a0::u) a n). exact Cm.
+    apply IHu. exact H1. apply (cm_truc u a a0). exact Cm.
+Qed.
+
+Theorem substitution_multiple_C_1 : forall (t: DeBruijn), forall (n: nat),
+    forall (terms: list DeBruijn),
+    S(t) -> Cm[n](terms) -> t[n <-- terms] = (t[n+1 <-- List.tl terms])[n <- List.hd (Var n) terms].
+Proof.
+    move => t n terms S Cm.
+    induction terms.
+    simpl. rewrite (safe_deprotect t S).
+    assert (t[n <- Var n] = t -> t = t[n <- Var n]). intuition.
+    apply H.
+    apply (substitute_equal t n S).
+
+    simpl.
+
+
+    (*apply (sub_preserves_equality 
+        (substitution_multiple t (n + 1) terms)
+        ((t) [n + 1 <-- terms]) 
+        (n) 
+        (a)).
+    rename a into hd.*)
+
+    
     
     
 
