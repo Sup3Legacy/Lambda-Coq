@@ -13,9 +13,77 @@ Notation "[]" := (nil).
 Inductive DeBruijn :=
     | Var : nat -> DeBruijn
     | Lambda : DeBruijn -> DeBruijn
-    | Application : DeBruijn -> DeBruijn -> DeBruijn.
+    | Application : DeBruijn -> DeBruijn -> DeBruijn
+    | Protect : DeBruijn -> DeBruijn.
 
 Check Application (Lambda (Var 0)) (Lambda (Var 0)).
+
+Fixpoint deprotect (t: DeBruijn) :=
+    match t with
+    | Var n => Var n
+    | Lambda tp => Lambda (deprotect tp)
+    | Application tp1 tp2 => Application (deprotect tp1) (deprotect tp2)
+    | Protect tp => deprotect tp
+    end
+.
+
+(* Basically "detects" if a terms contains a protected subterm *)
+Fixpoint protected (t: DeBruijn) : Prop :=
+    match t with
+    | Var n => False
+    | Lambda tp => protected tp
+    | Application tp1 tp2 => (protected tp1) \/ (protected tp2)
+    | Protect tp => True
+    end
+.
+
+(* This is a safe term, without any protected subterm *)
+Notation "S( t )" := (~(protected t)).
+
+Lemma protect_correctuion_aux_0_0 : 
+    (False \/ False) = False.
+Proof.
+    admit.
+Admitted.
+
+Lemma destruct_false_or : forall (P: Prop), forall (Q: Prop),
+    ~(P \/ Q) <-> ~P /\ ~Q.
+Proof.
+    intuition.
+Qed.
+    
+
+Lemma deprotect_correction : forall (t: DeBruijn),
+    S(deprotect t).
+Proof.
+    intros.
+    induction t.
+    simpl. auto.
+    simpl. exact IHt.
+    simpl. apply <- destruct_false_or. split. exact IHt1. exact IHt2. 
+    simpl. exact IHt.
+Qed. 
+
+Lemma lambda_equal : forall (t: DeBruijn), forall (u: DeBruijn),
+    Lambda t = Lambda u -> t = u.
+Proof.
+    intro t. intro u.
+    case. trivial.
+Qed.
+
+Theorem safe_deprotect : forall (t: DeBruijn),
+    S(t) -> deprotect(t) = t.
+Proof.
+    induction t.
+    simpl. reflexivity.
+    simpl. assert (deprotect t =  t -> Lambda (deprotect t) = Lambda t).
+    intro. rewrite H. reflexivity. intro. apply H. apply IHt. exact H0.
+    simpl. intro. apply destruct_false_or in H. destruct H.
+    assert (deprotect t1 = t1). apply IHt1. exact H.
+    assert (deprotect t2 = t2). apply IHt2. exact H0.
+    rewrite H1. rewrite H2. reflexivity.
+    simpl. contradiction.
+Qed.
 
 (* Question 2 *)
 
@@ -24,6 +92,7 @@ Fixpoint max_var_smaller_n_depth (t: DeBruijn) (n: nat) (depth: nat) : Prop :=
     | Var v => v < n + depth
     | Lambda tp => max_var_smaller_n_depth tp n (depth + 1)
     | Application tp0 tp1 => (max_var_smaller_n_depth tp0 n depth) /\ (max_var_smaller_n_depth tp1 n depth)
+    | Protect tp => max_var_smaller_n_depth tp n depth
     end.
 
 Definition max_var_smaller_n (t: DeBruijn) (n: nat) : Prop := 
@@ -43,6 +112,8 @@ Proof.
     split.
     apply IHt1. apply H1.
     apply IHt2. apply H2.
+    simpl. intros.
+    apply IHt. exact H.
 Qed.
     
 Notation "C[ n ]( t )" := (max_var_smaller_n t n).
@@ -85,7 +156,7 @@ Proof.
 Qed. 
 
 Lemma heredite_3 : forall (t: DeBruijn), forall (n: nat), forall (m: nat),
-    n < m -> C[n](t) -> C[m](t).
+    n <= m -> C[n](t) -> C[m](t).
 Proof.
     intros.
     assert (n + (m - n) = m). lia.
@@ -120,6 +191,7 @@ Fixpoint correct_free_variable_depth (t: DeBruijn) (depth: nat) :=
     | Var n => if depth <=? n then Var (n + 1) else Var n
     | Lambda tp => Lambda (correct_free_variable_depth tp (depth + 1))
     | Application tp0 tp1 => Application (correct_free_variable_depth tp0 depth) (correct_free_variable_depth tp1 depth)
+    | Protect tp => Protect (correct_free_variable_depth tp depth)
     end
 .
 
@@ -129,13 +201,14 @@ Definition correct_free_variable (t: DeBruijn) :=
 
 Fixpoint substitution (t: DeBruijn) (index: nat) (u: DeBruijn) : DeBruijn :=
     match t with
-    | Var n => if n =? index then u else (Var n)
+    | Var n => if n =? index then (Protect u) else (Var n)
     | Lambda tp => Lambda (substitution tp (index + 1) (correct_free_variable u))
     | Application tp0 tp1 => Application (substitution tp0 index u) (substitution tp1 index u)
+    | Protect tp => Protect tp
     end
 .
 
-Notation "t [ y <- u ]" := (substitution t y u) (at level 0).
+Notation "t [ y <- u ]" := (deprotect (substitution t y u)) (at level 0).
 
 Lemma aux_0 : forall (n: nat), forall (n0: nat),
     C[n](Var n0) -> n > n0.
@@ -175,10 +248,7 @@ Lemma aux_1_0 : forall (t: DeBruijn), forall (u: DeBruijn),
     u = t -> Lambda u = Lambda t.
 Proof.
     intros.
-    induction t.
-    rewrite H. reflexivity. 
-    rewrite <- H. reflexivity.
-    rewrite <- H. reflexivity.
+    rewrite H. reflexivity.
 Qed.
 
 Lemma aux_1_1 : forall (t1: DeBruijn), forall (t2: DeBruijn), forall (u1: DeBruijn), forall (u2: DeBruijn),
@@ -207,6 +277,7 @@ Proof.
     apply IHt1 with (d := S n0). exact H.
     destruct H.
     apply IHt2 with (d := S n0). exact H0.
+    simpl. exact IHt.
 Qed.
 
 Lemma aux_2_1 : forall (t: DeBruijn), forall (n: nat), forall (d: nat),
@@ -223,6 +294,7 @@ Proof.
     apply aux_2_0. exact H.
     destruct H.
     apply aux_2_0. exact H0.
+    simpl. apply IHt. simpl in H. simpl. exact H.
 Qed.    
 
 Lemma aux_2_2 : forall (t: DeBruijn), forall (n: nat),
@@ -251,12 +323,22 @@ Proof.
     exact H0.
 Qed.
 
+Lemma protect_aux_0 : forall (t: DeBruijn), forall (u: DeBruijn),
+    t = u -> deprotect t = deprotect u.
+Proof.
+    intros.
+    rewrite H. reflexivity.
+Qed.
+
 Theorem substitution_aux : forall (t: DeBruijn), forall (n: nat), 
-    C[n](t) -> forall (u: DeBruijn), t[n <- u] = t.
+    C[n](t) -> forall (u: DeBruijn), t[n <- u] = deprotect t.
 Proof.
     intro t. 
     induction t.
-    simpl. intros. apply aux_0_1. exact H.
+    simpl. intros. 
+    assert (forall (n: nat), deprotect (Var n) = Var n).
+    simpl. reflexivity. rewrite <- H0. apply protect_aux_0.
+    apply aux_0_1. exact H.
     simpl. intros. apply aux_1_0. 
     apply IHt with (n := n + 1). apply aux_2_2 with (t := t) (n := n). exact H.
     intros.
@@ -265,10 +347,11 @@ Proof.
     rewrite IHt1. exact H.
     rewrite IHt2. exact H0.
     reflexivity.
+    intros. simpl. reflexivity.
 Qed.
 
-Theorem substitution_thm : forall (t: DeBruijn),
-    closed t -> forall (u: DeBruijn), forall (n: nat), t[n <- u] = t.
+Theorem substitution_thm_general : forall (t: DeBruijn),
+    closed t -> forall (u: DeBruijn), forall (n: nat), t[n <- u] = deprotect t.
 Proof.
     intros.
     apply substitution_aux.
@@ -276,61 +359,145 @@ Proof.
     trivial.
 Qed.
 
-(* Question 4 *)
-
-Fixpoint correct_free_variable_multiple (terms: list DeBruijn) :=
-    match terms with
-    | [] => []
-    | t :: q => (correct_free_variable t) :: (correct_free_variable_multiple q)
-    end
-.
-
-(* `Var 0` is the default value *)
-Fixpoint substitution_multiple_aux (t: DeBruijn) (base: nat) (terms: list DeBruijn) : DeBruijn :=
-    match t with
-    | Var n => if ((Nat.leb base n) && (Nat.ltb n (base + (length terms)))) then (List.nth (n - base) terms (Var 0)) else Var n
-    | Lambda tp => Lambda (substitution_multiple_aux tp (base + 1) (correct_free_variable_multiple terms))
-    | Application tp1 tp2 => Application (substitution_multiple_aux tp1 base terms) (substitution_multiple_aux tp2 base terms)
-    end
-.
-
-Definition substitution_multiple (t: DeBruijn) (base: nat) (terms: list DeBruijn) :=
-    substitution_multiple_aux t base terms
-.
-
-Notation "t [ y <l- l ]" := (substitution_multiple t y l) (at level 0).
-
-Lemma substitution_0_0 : forall (i: nat), forall (n: nat),
-    (Nat.leb i n) && (Nat.ltb n (i + 0)) = false.
+Theorem substitution_thm : forall (t: DeBruijn),
+    C(t) -> S(t) -> forall (u: DeBruijn), forall (n: nat), t[n <- u] = t.
 Proof.
-    intros.
-    assert (i + 0 = i). lia.
-    rewrite H.
-    unfold Nat.leb. unfold Nat.ltb. unfold Nat.leb.
-Admitted.
-
-Theorem nil_substitution : forall (t: DeBruijn), forall (i: nat),
-    t[i <l- []] = t.
-Proof.
-    intro t.
-    induction t.
-    unfold substitution_multiple.
-    unfold substitution_multiple_aux. intros.
-    simpl. intros. 
-    rewrite substitution_0_0. reflexivity.
-    simpl. move => i.
-    assert ((t) [i + 1 <l- []] = t).
-    exact (IHt (i + 1)). 
-    apply aux_1_0 with (u := t [i + 1 <l- []]) (t := t). exact H.
-    simpl. move => i.
-    apply aux_1_1 with (t1 := t1[i <l- []]) (t2 := t2[i <l- []]) (u1 := t1) (u2 := t2).
-    exact (IHt1 (i)). exact (IHt2 (i)).
+    intro t. intro C. intro S.
+    assert (deprotect t = t).
+    apply safe_deprotect. exact S.
+    pattern (t) at 2. rewrite <- H.
+    apply substitution_thm_general.
+    exact C.
 Qed.
 
-Theorem C_substitution : forall (t: DeBruijn), forall (n: nat), 
-    C[n](t) -> forall (terms: list DeBruijn), t[n <l- terms] = t.
+
+Theorem raw_substitution_aux : forall (t: DeBruijn), forall (n: nat), 
+    C[n](t) -> forall (u: DeBruijn), substitution t n u = t.
+Proof.
+    intro t. 
+    induction t.
+    simpl. intros. 
+    simpl. apply aux_0_1. exact H.
+
+    move => n H u. simpl. apply aux_1_0. simpl.
+    assert (C[n + 1](t)). apply aux_2_2. exact H. 
+    apply (IHt (n + 1) H0 (correct_free_variable u)).
+    move => n H u. simpl. apply aux_3 in H.
+    destruct H.
+    rewrite (IHt1 n H u).
+    rewrite (IHt2 n H0 u).
+    reflexivity.
+    move => n C u.
+    simpl. reflexivity.
+Qed.
+
+Theorem raw_substitution_thm_general : forall (t: DeBruijn),
+    closed t -> forall (u: DeBruijn), forall (n: nat), substitution t n u = t.
 Proof.
     intros.
-    induction t.
-    admit.
+    apply raw_substitution_aux.
+    apply closed_universal.
+    trivial.
+Qed.
 
+(* Question 4 *)
+
+Fixpoint substitution_multiple_aux (t: DeBruijn) (offset: nat) (u: list DeBruijn) : DeBruijn :=
+    match u with
+    | [] => t
+    | hd :: tl => 
+    substitution (substitution_multiple_aux t (offset + 1) tl) (offset) hd
+    end
+.
+
+Definition substitution_multiple (t: DeBruijn) (base: nat) (u: list DeBruijn) :=
+    substitution_multiple_aux t base u.
+
+Notation "t [ n <-- l ]" := (deprotect (substitution_multiple t n l)) (at level 0).
+
+Theorem substitution_multiple_nil : forall (t: DeBruijn), forall (n: nat),
+    S(t) -> t[n <-- []] = t.
+Proof.
+    intros.
+    unfold substitution_multiple.
+    unfold substitution_multiple_aux.
+    apply safe_deprotect. exact H.
+Qed.
+
+Lemma substitution_multiple_one_step : forall (t: DeBruijn), forall (n: nat), 
+    forall (u: DeBruijn), forall (terms: list DeBruijn),
+    S(t) -> substitution_multiple t n (u :: terms) = 
+        substitution (substitution_multiple t (n + 1) terms) n u.
+Proof.
+    intros.
+    induction terms.
+    unfold substitution_multiple.
+    unfold substitution_multiple_aux.
+    reflexivity.
+    unfold substitution_multiple.
+    unfold substitution_multiple_aux. simpl.
+    assert (n + 1 + 1 = n + 2). lia. rewrite H0. reflexivity.
+Qed.
+
+Theorem substitution_multiple_C_0 : forall (t: DeBruijn), forall (n: nat),
+    C[n](t) -> S(t) -> forall (u: list DeBruijn), forall (m: nat),
+    m >= n -> substitution_multiple t m u = t.
+Proof.
+    move => t n C S.
+    induction u.
+    unfold substitution_multiple.
+    move => m cmp.
+    unfold substitution_multiple_aux. reflexivity.
+
+    move => m cmp.
+    rewrite (substitution_multiple_one_step t m a u S).
+
+    assert (m + 1 >= n). lia.
+    rewrite (IHu (m + 1) H).
+
+    apply raw_substitution_aux. apply (heredite_3 t n m). lia. exact C.
+Qed.
+
+Theorem substitution_multiple_C_thm : forall (t: DeBruijn), forall (n: nat),
+    C[n](t) -> S(t) -> forall (u: list DeBruijn), t[n <-- u] = t.
+Proof.
+    move => t n C S u.
+    assert (n >= n). lia.
+    rewrite (substitution_multiple_C_0 t n C S u n H). 
+    apply safe_deprotect. exact S.
+Qed.
+
+Fixpoint C_multiple (u: list DeBruijn) (n: nat) : Prop :=
+    match u with
+    | [] => True
+    | hd :: tl => (C[n](hd)) /\ (C_multiple tl n)
+    end
+.
+
+Notation "Cm[ n ]( u )" := (C_multiple u n).
+
+Lemma sub_preserves_equality : forall (t: DeBruijn), forall (u: DeBruijn), 
+    forall (n: nat), forall (v: DeBruijn),
+    t = u -> t[n <- v] = u[n <- v].
+Proof.
+    move => t u n v E.
+    rewrite E.
+    reflexivity.
+Qed.
+
+Theorem substitution_multiple_C_1 : forall (t: DeBruijn), forall (n: nat),
+    forall (u: DeBruijn), forall (terms: list DeBruijn),
+    S(t) -> Cm[n](terms) -> t[n <-- u::terms] = (t[n+1 <-- terms])[n <- u].
+Proof.
+    move => t n u terms S Cm.
+    induction terms.
+    simpl. rewrite (safe_deprotect t S). reflexivity.
+
+    simpl. assert (n + 1 + 1 = n + 2). lia. rewrite H.
+    apply (sub_preserves_equality 
+        (substitution (substitution_multiple t (n + 2) terms) (n + 1) a)
+        ((substitution_multiple t (n + 2) terms) [n + 1 <- a]) (n) u).
+    
+    
+
+    
