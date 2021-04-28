@@ -615,6 +615,17 @@ Proof.
     simpl. intuition.
 Qed.
 
+Lemma cm_truc_4 : forall(u : DeBruijn), forall (a: DeBruijn), forall (terms: list DeBruijn),
+    forall (n: nat),
+    Cm[n](u :: a :: terms) -> Cm[n](u :: terms).
+Proof.
+    intros.
+    assert (C_multiple (a :: terms) n). intuition.
+    assert (Cm[n](a :: terms)). apply cm_conversion. exact H0.
+    assert (C_multiple terms n). intuition.
+    intuition.
+Qed.
+
 Lemma cm_meaning : forall (u: list DeBruijn), forall (n: nat),
     Cm[n](u) -> List.Forall (fun x => C[n](x)) (List.tl u).
 Proof.
@@ -726,58 +737,56 @@ Proof.
     simpl. contradiction S. simpl. trivial.
 Qed.
 
+Lemma substitution_multiple_commut_weak : forall (t: DeBruijn), forall (n: nat), forall (u1: DeBruijn), 
+    forall (u2 : DeBruijn), forall (terms: list DeBruijn),
+    S(t) -> C[n](u2) -> Cm[n](terms) ->
+    (substitution_multiple t (n + 1) terms)[n <-- u1 :: u2 :: []] = 
+    (substitution_multiple t (n + 1) terms)[n+1 <- u2][n <- u1].
+Proof.
+    admit.
+Admitted.
 
-Theorem substitution_multiple_C_1 : forall (t: DeBruijn), forall (n: nat),
+(*
+H1: (Var n0) [n <-- u :: a :: []] = ((Var n0) [n + 1 <-- a :: []]) [n <- u]
+H2: (Var n0) [n <-- u :: terms] = ((Var n0) [n + 1 <-- terms]) [n <- u]
+1/4
+(Var n0) [n <-- u :: a :: terms] = ((Var n0) [n + 1 <-- a :: terms]) [n <- u]
+*)
+
+Lemma heredite_substitution_mutiple : forall (t: DeBruijn), forall (u: DeBruijn), forall (a: DeBruijn),
+    forall (terms: list DeBruijn), forall (n: nat),
+    S(t) -> Cm[n](u :: a :: terms) -> Cm[n](u :: terms) ->
+    (forall (t0: DeBruijn), S(t0) -> C[n](a) -> t0[n <-- u :: a :: []] = (t0[n + 1 <-- a :: []])[n <- u]) ->
+    t[n <-- u :: terms] = (t[n + 1 <-- terms])[n <- u] ->
+    t[n <-- u :: a :: terms] = (t[n + 1 <-- a :: terms])[n <- u].
+Proof.
+    move => t u a terms n0 S Cm1 Cm2 H1 H2.
+    simpl. 
+    simpl in H2. unfold substitution_multiple in H2.
+    simpl in H1. rewrite <- H1. reflexivity.
+    (* En fait... On n'a pas la safety du terme :( bah ouais, c'est une substitution_multiple,
+    donc clairement il a potentiellement plein d'endroits protégés.
+    Mais mais mais... La propriété S(t) pour substitution_multiple_commut est un
+    tout petit peu trop forte: (substitution_multiple t (n + 1) terms) marcherait,
+    pour peu que C[n](terms)... Pénible à faire! *)
+    admit.
+    assert (C[n0](a)). apply (cm_truc terms u a n0 Cm1).
+    exact H.
+Admitted.
+    
+Theorem substitution_multiple_C_2 : forall (t: DeBruijn), forall (n: nat), forall (u: DeBruijn),
     forall (terms: list DeBruijn),
-    S(t) -> Cm[n](terms) -> t[n <-- terms] = (t[n+1 <-- List.tl terms])[n <- List.hd (Var n) terms].
+    S(t) -> Cm[n](u :: terms) -> t[n <-- u :: terms] = 
+        (t[n+1 <--terms])[n <- u].
 Proof.
     induction terms.
-    move => S C.
-    simpl. rewrite (safe_deprotect t S).
-    assert (t[n <- Var n] = t -> t = t[n <- Var n]). intuition.
-    apply H.
-    apply (substitute_equal t n S).
-
-    simpl.
+    revert n.
+    move => n S Cm.
+    simpl. rewrite (safe_deprotect t S). reflexivity.
     
-    induction t.
+    assert (forall (t0: DeBruijn), S(t0) -> C[n](a) -> t0[n <-- u :: a :: []] = (t0[n + 1 <-- a :: []])[n <- u]).
+    intros. apply substitution_multiple_commut. exact H. exact H0.
     move => S Cm.
-    (* This is where the world ends... *)
-
-    move => n0 n u1 u2 S C2.
-    case_eq (n0 =? n + 1).
-    move => egalite.
-    apply stupid_0 in egalite.
-    simpl. assert (S(deprotect u2)). apply deprotect_correction.
-    assert (C[n](deprotect u2)). apply (C_deprotect u2 n). exact C2.
-    assert ((deprotect u2)[n <- u1] = deprotect (deprotect u2)).
-    apply (substitution_aux (deprotect u2) n H0 u1).
-    rewrite -> deprotect_involutive in H1.
-    intuition.
-    simpl. intro. reflexivity.
-    move => n u1 u2 S C. assert (S(t)). intuition.
-    assert (C[n + 1](u2)). apply (heredite_1 u2 n C). simpl.
-    apply aux_1_0. (* assert (n + 1 + 1 = n + 2). lia. rewrite H1. *) 
-    assert (C[n + 1](correct_free_variable u2)). apply (heredite_correct_variable u2 n C).
-    rewrite (IHt (n + 1) (correct_free_variable u1) (correct_free_variable u2) H H1). reflexivity.
-    move => n u1 u2 S C2.
-    simpl. apply aux_1_1.
-    assert (S(t1)). unfold protected in S. intuition.
-    apply (IHt1 n u1 u2 H C2).
-    assert (S(t2)). unfold protected in S. intuition.
-    apply (IHt2 n u1 u2 H C2).
-    move => n u1 u2 S C2.
-    simpl. contradiction S. simpl. trivial.
-
-    (*apply (sub_preserves_equality 
-        (substitution_multiple t (n + 1) terms)
-        ((t) [n + 1 <-- terms]) 
-        (n) 
-        (a)).
-    rename a into hd.*)
-
-    
-    
-    
-
-    
+    assert (Cm[n](u :: terms)). apply (cm_truc_4 u a terms n Cm).
+    apply (heredite_substitution_mutiple t u a terms n S Cm H0 H (IHterms S H0)).
+Qed.
