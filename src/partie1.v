@@ -248,7 +248,7 @@ Definition correct_free_variable (t: DeBruijn) :=
 Fixpoint substitution (t: DeBruijn) (index: nat) (u: DeBruijn) : DeBruijn :=
     match t with
     | Var n => if n =? index then (Protect u) else (Var n)
-    | Lambda tp => Lambda (substitution tp (index + 1) (correct_free_variable u))
+    | Lambda tp => Lambda (substitution tp (index + 1) u)
     | Application tp0 tp1 => Application (substitution tp0 index u) (substitution tp1 index u)
     | Protect tp => Protect tp
     end
@@ -455,7 +455,7 @@ Proof.
 
     move => n H u. simpl. apply aux_1_0. simpl.
     assert (C[n + 1](t)). apply aux_2_2. exact H. 
-    apply (IHt (n + 1) H0 (correct_free_variable u)).
+    apply (IHt (n + 1) H0 u).
     move => n H u. simpl. apply aux_3 in H.
     destruct H.
     rewrite (IHt1 n H u).
@@ -646,7 +646,7 @@ Proof.
     move => H. simpl. reflexivity.
     move => n u Cn.
     simpl. apply aux_1_0.
-    apply (IHt (n + 1) (correct_free_variable u)).
+    apply (IHt (n + 1) u).
     apply aux_2_1. exact Cn.
     move => n u Cn.
     destruct Cn.
@@ -666,7 +666,7 @@ Proof.
     simpl. reflexivity.
     move => n u Sn.
     simpl. assert (S[n](t)). apply partial_safeness_passes. exact Sn.
-    apply aux_1_0. rewrite (IHt (n + 1) (correct_free_variable u)).
+    apply aux_1_0. rewrite (IHt (n + 1) u).
     exact (partial_safeness_heredite_1 t n H).
     reflexivity.
     move => n u.
@@ -768,37 +768,6 @@ Proof.
     move => t u n v E.
     rewrite E.
     reflexivity.
-Qed.
-
-
-
-
-Lemma substitute_equal : forall (t: DeBruijn), forall (n: nat),
-    S(t) -> t[n <- Var n] = t.
-Proof.
-    move => t.
-    induction t.
-    move => n0.
-    move => S.
-    simpl.
-    case_eq (n =? n0).
-    move => egalite.
-    apply stupid_0 in egalite.
-    rewrite <- egalite. simpl. reflexivity.
-    intro H. simpl. reflexivity.  
-
-    move => n S. assert (correct_free_variable (Var n) = Var (n + 1)).
-    unfold correct_free_variable. simpl. reflexivity. simpl. rewrite H.
-    rewrite (IHt (n + 1)). exact S. reflexivity.
-    move => n S.
-    simpl. rewrite IHt1. 
-    simpl in S. apply destruct_false_or in S.
-    destruct S. exact H.
-    simpl. rewrite IHt2.
-    simpl in S. apply destruct_false_or in S.
-    destruct S. exact H0. reflexivity.
-    move => n. unfold protected.
-    contradiction.
 Qed.
 
 Lemma cm_add : forall (u: list DeBruijn), forall (n: nat), forall (a: DeBruijn),
@@ -914,7 +883,7 @@ Qed.
 Lemma heredite_correct_variable_aux : forall (t: DeBruijn), forall (n: nat),
     forall (d: nat), forall (dp: nat),
     max_var_smaller_n_depth t n d -> 
-        max_var_smaller_n_depth (correct_free_variable_depth t dp) (n + 1) d.
+        max_var_smaller_n_depth t (n + 1) d.
 Proof.
     induction t.
     simpl.
@@ -950,10 +919,10 @@ Proof.
 Qed.
 
 Lemma heredite_correct_variable : forall (t: DeBruijn), forall (n: nat),
-    C[n](t) -> C[n + 1](correct_free_variable t).
+    C[n](t) -> C[n + 1]( t).
 Proof.
     move => t n Cn.
-    apply heredite_correct_variable_aux.
+    apply (heredite_correct_variable_aux t n). intuition.
     exact Cn.
 Qed.
 
@@ -980,8 +949,8 @@ Proof.
     move => n u1 u2 S C. assert (S(t)). intuition.
     assert (C[n + 1](u2)). apply (heredite_1 u2 n C). simpl.
     apply aux_1_0. (* assert (n + 1 + 1 = n + 2). lia. rewrite H1. *) 
-    assert (C[n + 1](correct_free_variable u2)). apply (heredite_correct_variable u2 n C).
-    rewrite (IHt (n + 1) (correct_free_variable u1) (correct_free_variable u2) H H1). reflexivity.
+    assert (C[n + 1](u2)). apply (heredite_correct_variable u2 n C).
+    rewrite (IHt (n + 1) u1 u2 H H1). reflexivity.
     move => n u1 u2 S C2.
     simpl. apply aux_1_1.
     assert (S(t1)). unfold protected in S. intuition.
@@ -991,50 +960,6 @@ Proof.
     move => n u1 u2 S C2.
     simpl. contradiction S. simpl. trivial.
 Qed.
-
-Lemma substitution_multiple_commut_weak : forall (t: DeBruijn), forall (n: nat), forall (u1: DeBruijn), 
-    forall (u2 : DeBruijn), forall (terms: list DeBruijn),
-    S[n](t) -> C[n](u2) -> Cm[n](terms) ->
-    t[n <-- u1 :: u2 :: []] = 
-    t[n+1 <- u2][n <- u1].
-Proof.
-    simpl.
-    induction t.
-    revert n.
-    move => n n0 u1 u2 terms S C Cm.
-    case_eq (n =? n0).
-    move => H.
-    assert (n = n0). apply stupid_0. exact H.
-    apply sub_preserves_equality.
-Admitted.
-
-(*
-H1: (Var n0) [n <-- u :: a :: []] = ((Var n0) [n + 1 <-- a :: []]) [n <- u]
-H2: (Var n0) [n <-- u :: terms] = ((Var n0) [n + 1 <-- terms]) [n <- u]
-1/4
-(Var n0) [n <-- u :: a :: terms] = ((Var n0) [n + 1 <-- a :: terms]) [n <- u]
-*)
-
-Lemma heredite_substitution_mutiple : forall (t: DeBruijn), forall (u: DeBruijn), forall (a: DeBruijn),
-    forall (terms: list DeBruijn), forall (n: nat),
-    S(t) -> Cm[n](u :: a :: terms) -> Cm[n](u :: terms) ->
-    (forall (t0: DeBruijn), S(t0) -> C[n](a) -> t0[n <-- u :: a :: []] = (t0[n + 1 <-- a :: []])[n <- u]) ->
-    t[n <-- u :: terms] = (t[n + 1 <-- terms])[n <- u] ->
-    t[n <-- u :: a :: terms] = (t[n + 1 <-- a :: terms])[n <- u].
-Proof.
-    move => t u a terms n0 S Cm1 Cm2 H1 H2.
-    simpl. 
-    simpl in H2. apply sub_preserves_equality.
-    
-    unfold substitution_multiple in H2.
-    simpl in H1.
-    (* En fait... On n'a pas la safety du terme :( bah ouais, c'est une substitution_multiple,
-    donc clairement il a potentiellement plein d'endroits protégés.
-    Mais mais mais... La propriété S(t) pour substitution_multiple_commut est un
-    tout petit peu trop forte: (substitution_multiple t (n + 1) terms) marcherait,
-    pour peu que C[n](terms)... Pénible à faire! *)
-    admit.
-Admitted.
 
 Lemma protected_protected_n : forall (t: DeBruijn),
     S(t) -> forall (n: nat), S[n](t)
@@ -1068,7 +993,7 @@ Proof.
     move => H. exact Sn0.
     move => a n Sn Cn m.
     simpl. (*exact (IHt (correct_free_variable a) n Sn Cn (m + 1)).*)
-    admit.
+    exact (IHt a n Sn Cn (m + 1)).
     move => a n Sn Cn m.
     simpl.
     apply destruct_false_or.
@@ -1079,7 +1004,7 @@ Proof.
     exact (IHt2 a n H0 Cn m).
     move => a n Sn Cn m.
     simpl. simpl in Sn. exact Sn.
-Admitted.
+Qed.
 (*
 induction t.
     move => a n0 Sn0 Cn0 m.
