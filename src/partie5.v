@@ -85,6 +85,8 @@ Inductive correct_stack : Stack_type -> Prop :=
         correct_stack e_0 -> correct_stack e -> correct_stack (Stack (c_0, e_0) e)
 .
 
+Print correct_stack.
+
 Definition correct_state : State -> Prop :=
     fun '(c, e, s) => correct_stack (Stack (c, e) s)
 .
