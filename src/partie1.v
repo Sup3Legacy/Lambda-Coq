@@ -40,7 +40,7 @@ Fixpoint protected (t: DeBruijn) : Prop :=
 Fixpoint contains_geq_n (t: DeBruijn) (n: nat) : Prop :=
     match t with 
     | Var n0 => n0 >= n
-    | Lambda t => contains_geq_n t n 
+    | Lambda t => contains_geq_n t (n + 1)
     | Application tp1 tp2 => (contains_geq_n tp1 n) \/ (contains_geq_n tp2 n)
     | Protect tp => contains_geq_n tp n
     end
@@ -496,7 +496,7 @@ Proof.
     move => n0.
     simpl. lia.
     move => n.
-    simpl. exact (IHt n).
+    simpl. exact (IHt (n + 1)).
     simpl.
     move => n H.
     apply destruct_false_or.
@@ -545,12 +545,10 @@ Proof.
     move => n0.
     simpl. unfold max_var_smaller_n. simpl. lia.
     move => n.
-    simpl. move => H. unfold max_var_smaller_n. 
+    simpl. move => H. unfold max_var_smaller_n. simpl. unfold max_var_smaller_n in IHt.
     assert (max_var_smaller_n_depth t (n + 1) 0).
-    assert (C[n + 1](t)). apply (IHt (n + 1)).
-    apply (contains_geq_n_heredite_1). exact H.
-    exact H0.
-    apply aux_2_1. exact H0.
+    apply (IHt (n + 1) H).
+    apply <- (aux_2_0 t n 0). exact H0.
     simpl. move => n H.
     apply destruct_false_or in H.
     unfold max_var_smaller_n.
@@ -563,30 +561,65 @@ Proof.
     unfold max_var_smaller_n. simpl. exact (IHt n).
 Qed.
 
-Lemma partial_safety_protect_C : forall (t: DeBruijn), forall (n: nat),
-    S[n](Protect t) -> C[n](t)
+Lemma not_contains_geq_n_Cn_reversed : forall (t: DeBruijn), forall (n: nat),
+    C[n](t) -> ~ (contains_geq_n t n)
 .
 Proof.
     induction t.
-    move => n0 Sn0.
+    move => n0 H.
+    simpl.
+    assert (n0 > n). apply aux_0. exact H.
+    lia.
+    move => n H.
+    simpl.
+    assert (C[n + 1](t)). apply aux_2_1. exact H.
+    exact (IHt (n + 1) H0).
+    move => n C.
+    destruct C.
+    apply destruct_false_or.
+    split. 1-2:fold contains_geq_n.
+    exact (IHt1 n H).
+    exact (IHt2 n H0).
+    simpl.
+    trivial.
+Qed.
+
+Lemma not_contains_Cn : forall (t: DeBruijn), forall (n: nat),
+    C[n](t) <-> ~ (contains_geq_n t n)
+.
+Proof.
+    move => t n.
+    split.
+    move => C.
+    apply not_contains_geq_n_Cn_reversed. exact C.
+    move => S.
+    apply not_contains_geq_n_Cn. exact S.
+Qed.
+
+Lemma partial_safety_protect_C : forall (t: DeBruijn), (forall (n: nat),
+    S[n](Protect t) <-> C[n](t))
+.
+Proof.
+    split.
+    move => Sn.
+    induction t.
     unfold max_var_smaller_n. simpl. 
-    unfold protected_n in Sn0.
-    unfold contains_geq_n in Sn0. lia.
-    move => n Sn.
+    unfold protected_n in Sn.
+    unfold contains_geq_n in Sn. lia.
     simpl in Sn.
     assert (~(contains_geq_n (Lambda t) n)).
     simpl. exact Sn.
     apply not_contains_geq_n_Cn. exact H.
-    move => n.
-    simpl. move => H.
-    apply destruct_false_or in H. destruct H.
+    simpl. simpl in Sn. apply destruct_false_or in Sn. destruct Sn.
     split.
-    exact (IHt1 n H).
-    exact (IHt2 n H0).
-    simpl.
-    move => n.
+    apply (IHt1 H).
+    apply (IHt2 H0).
     unfold max_var_smaller_n. simpl. simpl in IHt.
-    exact (IHt n).
+    simpl in Sn. exact (IHt Sn). 
+    
+    move => C.
+    unfold protected_n.
+    apply not_contains_Cn. exact C. 
 Qed.
 
 Lemma stupid_0 : forall (n: nat), forall (n0: nat),
@@ -959,11 +992,21 @@ Proof.
     simpl. contradiction S. simpl. trivial.
 Qed.
 
-(* 
-partial_protect_identity : forall (t: DeBruijn),
-    forall (n: nat), forall (u: DeBruijn),
-    S[n](t) -> t[n <- u] = (deprotect t)[n <- u]
-*)
+Lemma substitution_multiple_commut_weak : forall (t: DeBruijn), forall (n: nat), forall (u1: DeBruijn), 
+    forall (u2 : DeBruijn), forall (terms: list DeBruijn),
+    S[n](t) -> C[n](u2) -> Cm[n](terms) ->
+    t[n <-- u1 :: u2 :: []] = 
+    t[n+1 <- u2][n <- u1].
+Proof.
+    simpl.
+    induction t.
+    revert n.
+    move => n n0 u1 u2 terms S C Cm.
+    case_eq (n =? n0).
+    move => H.
+    assert (n = n0). apply stupid_0. exact H.
+    apply sub_preserves_equality.
+Admitted.
 
 (*
 H1: (Var n0) [n <-- u :: a :: []] = ((Var n0) [n + 1 <-- a :: []]) [n <- u]
@@ -981,18 +1024,87 @@ Lemma heredite_substitution_mutiple : forall (t: DeBruijn), forall (u: DeBruijn)
 Proof.
     move => t u a terms n0 S Cm1 Cm2 H1 H2.
     simpl. 
-    simpl in H2. unfold substitution_multiple in H2.
-    simpl in H1. rewrite <- H1. reflexivity.
+    simpl in H2. apply sub_preserves_equality.
+    
+    unfold substitution_multiple in H2.
+    simpl in H1.
     (* En fait... On n'a pas la safety du terme :( bah ouais, c'est une substitution_multiple,
     donc clairement il a potentiellement plein d'endroits protégés.
     Mais mais mais... La propriété S(t) pour substitution_multiple_commut est un
     tout petit peu trop forte: (substitution_multiple t (n + 1) terms) marcherait,
     pour peu que C[n](terms)... Pénible à faire! *)
     admit.
-    assert (C[n0](a)). apply (cm_truc terms u a n0 Cm1).
-    exact H.
 Admitted.
+
+Lemma protected_protected_n : forall (t: DeBruijn),
+    S(t) -> forall (n: nat), S[n](t)
+.
+Proof.
+    induction t.
+    move => S n0.
+    unfold protected_n.
+    intuition.
+    simpl.
+    assumption.
+    simpl.
+    move => H. apply destruct_false_or in H. destruct H.
+    move => n.
+    apply destruct_false_or. split.
+    exact (IHt1 H n).
+    exact (IHt2 H0 n).
+    simpl. intuition.
+Qed.
+
+Lemma Sn_heredite_substitution : forall (t: DeBruijn), forall (a: DeBruijn), forall (n: nat),
+    S[n](t) -> C[n](a) -> (forall (m: nat), S[n](substitution t m a))
+.
+Proof.
+    induction t.
+    move => a n0 Sn0 Cn0 m.
+    simpl. case_eq (n =? m).
+    move => H. apply stupid_0 in H.
+    simpl.
+    apply partial_safety_protect_C. exact Cn0.
+    move => H. exact Sn0.
+    move => a n Sn Cn m.
+    simpl. (*exact (IHt (correct_free_variable a) n Sn Cn (m + 1)).*)
+    admit.
+    move => a n Sn Cn m.
+    simpl.
+    apply destruct_false_or.
+    simpl in Sn. apply destruct_false_or in Sn.
+    destruct Sn.
+    split.
+    exact (IHt1 a n H Cn m).
+    exact (IHt2 a n H0 Cn m).
+    move => a n Sn Cn m.
+    simpl. simpl in Sn. exact Sn.
+Admitted.
+(*
+induction t.
+    move => a n0 Sn0 Cn0 m.
+    simpl. case_eq (n =? m).
+    move => H. apply stupid_0 in H.
+    simpl.
+    induction a.
+    simpl. assert (n0 > n1). apply aux_0. exact Cn0. lia.
     
+*)
+
+Lemma petit_lemme_final : forall (t: DeBruijn),  forall (terms: list DeBruijn),
+    S(t) -> (forall (n: nat), C_multiple terms n -> 
+    (forall (m: nat), S[n](substitution_multiple t m terms)))
+.
+Proof.
+    induction terms.
+    move => S n H m. apply (protected_protected_n t S n).
+    simpl. move => S n H m.
+    destruct H. apply (Sn_heredite_substitution 
+        (substitution_multiple t (m + 1) terms) a 
+    ). exact (IHterms S n H0 (m + 1)). exact H.
+Qed.
+
+
 Theorem substitution_multiple_C_2 : forall (t: DeBruijn), forall (n: nat), forall (u: DeBruijn),
     forall (terms: list DeBruijn),
     S(t) -> Cm[n](u :: terms) -> t[n <-- u :: terms] = 
@@ -1002,10 +1114,19 @@ Proof.
     revert n.
     move => n S Cm.
     simpl. rewrite (safe_deprotect t S). reflexivity.
+
     
     assert (forall (t0: DeBruijn), S(t0) -> C[n](a) -> t0[n <-- u :: a :: []] = (t0[n + 1 <-- a :: []])[n <- u]).
     intros t0 H H0. apply substitution_multiple_commut. exact H. exact H0.
     move => S Cm.
     assert (Cm[n](u :: terms)). apply (cm_truc_4 u a terms n Cm).
-    apply (heredite_substitution_mutiple t u a terms n S Cm H0 H (IHterms S H0)).
+    apply partial_protect_identity.
+    assert (C_multiple (a :: terms) n). apply (cm_add (a:: terms) n u Cm). 
+    apply (petit_lemme_final t (a::terms) S n H1).
 Qed.
+
+(*
+partial_protect_identity : forall (t: DeBruijn),
+    forall (n: nat), forall (u: DeBruijn),
+    S[n](t) -> t[n <- u] = (deprotect t)[n <- u]
+*)
