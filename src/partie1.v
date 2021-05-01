@@ -232,19 +232,6 @@ Qed.
 
 (* Question 3 *)
 (* TODO change this to a unique depth-shift. *)
-Fixpoint correct_free_variable_depth (t: DeBruijn) (depth: nat) :=
-    match t with
-    | Var n => if depth <=? n then Var (n + 1) else Var n
-    | Lambda tp => Lambda (correct_free_variable_depth tp (depth + 1))
-    | Application tp0 tp1 => Application (correct_free_variable_depth tp0 depth) (correct_free_variable_depth tp1 depth)
-    | Protect tp => Protect (correct_free_variable_depth tp depth)
-    end
-.
-
-Definition correct_free_variable (t: DeBruijn) :=
-    correct_free_variable_depth t 0
-.
-
 Fixpoint substitution (t: DeBruijn) (index: nat) (u: DeBruijn) : DeBruijn :=
     match t with
     | Var n => if n =? index then (Protect u) else (Var n)
@@ -898,8 +885,7 @@ Proof.
 
     move => n d dp.
     unfold max_var_smaller_n. simpl.
-    unfold max_var_smaller_n in IHt. simpl in IHt.
-    unfold correct_free_variable in IHt.
+    unfold max_var_smaller_n in IHt.
     exact (IHt n (d + 1) (dp + 1)).
 
     move => n d dp.
@@ -948,7 +934,7 @@ Proof.
     simpl. intro H. reflexivity.
     move => n u1 u2 S C. assert (S(t)). intuition.
     assert (C[n + 1](u2)). apply (heredite_1 u2 n C). simpl.
-    apply aux_1_0. (* assert (n + 1 + 1 = n + 2). lia. rewrite H1. *) 
+    apply aux_1_0.
     assert (C[n + 1](u2)). apply (heredite_correct_variable u2 n C).
     rewrite (IHt (n + 1) u1 u2 H H1). reflexivity.
     move => n u1 u2 S C2.
@@ -992,7 +978,7 @@ Proof.
     apply partial_safety_protect_C. exact Cn0.
     move => H. exact Sn0.
     move => a n Sn Cn m.
-    simpl. (*exact (IHt (correct_free_variable a) n Sn Cn (m + 1)).*)
+    simpl.
     exact (IHt a n Sn Cn (m + 1)).
     move => a n Sn Cn m.
     simpl.
@@ -1005,16 +991,6 @@ Proof.
     move => a n Sn Cn m.
     simpl. simpl in Sn. exact Sn.
 Qed.
-(*
-induction t.
-    move => a n0 Sn0 Cn0 m.
-    simpl. case_eq (n =? m).
-    move => H. apply stupid_0 in H.
-    simpl.
-    induction a.
-    simpl. assert (n0 > n1). apply aux_0. exact Cn0. lia.
-    
-*)
 
 Lemma petit_lemme_final : forall (t: DeBruijn),  forall (terms: list DeBruijn),
     S(t) -> (forall (n: nat), C_multiple terms n -> 
@@ -1049,9 +1025,3 @@ Proof.
     assert (C_multiple (a :: terms) n). apply (cm_add (a:: terms) n u Cm). 
     apply (petit_lemme_final t (a::terms) S n H1).
 Qed.
-
-(*
-partial_protect_identity : forall (t: DeBruijn),
-    forall (n: nat), forall (u: DeBruijn),
-    S[n](t) -> t[n <- u] = (deprotect t)[n <- u]
-*)
