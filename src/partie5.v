@@ -137,22 +137,7 @@ Proof.
     case. trivial.
 Qed.
 
-(* correct_trans : forall (c_0: Instruction),
-        forall (e_0: Environment), forall (e: Environment),
-        (C[stack_length e_0](tau_code(c_0))) -> 
-        correct_stack e_0 -> correct_stack e -> correct_stack (Stack (c_0, e_0) e)
-*)
-
-Lemma heredity_cos_0 : forall (i: Instruction), forall (e: Environment),
-    forall (s: Stack_type), forall (i_0: Instruction), forall (s_0: Stack_type),
-    CoS((i, Stack (i_0, s_0) e, s)) -> CoS((i, e, s))
-.
-Proof.
-    move => i e s i_0 s_0 H.
-    simpl in H. simpl. intuition.
-Admitted.
-
-Theorem correct_state_trans : forall (s1: State),
+Theorem state_trans : forall (s1: State),
     CoS(s1) -> CoSo(step_krivine s1)
 .
 Proof.
@@ -201,9 +186,17 @@ Proof.
     simpl in H.
     destruct H.
     exact H.
+Qed.
 
 
-
+Theorem transition_beta : forall (s1 s2: State),
+    CoS(s1) -> step_krivine s1 = Some s2 -> ((tau s1) -b> (tau s2))
+.
+Proof.
+    move => s1 s2 CoS_s1 step.
+    destruct s1.
+    destruct p.
+    induction i.
+    simpl.
+Admitted.
     
-
-
