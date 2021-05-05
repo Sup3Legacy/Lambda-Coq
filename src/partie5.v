@@ -68,8 +68,6 @@ Proof.
     intuition.
 Qed.
 
-Print substitution_multiple_commut.
-
 Fixpoint stack_length (e: Environment) :=
     match e with
     | Nil => 0
@@ -77,12 +75,20 @@ Fixpoint stack_length (e: Environment) :=
     end 
 .
 
-Inductive correct_stack : Stack_type -> Prop :=
-    | nil_correct : correct_stack Nil
+Inductive correct_stack_old : Stack_type -> Prop :=
+    | nil_correct : correct_stack_old Nil
     | correct_trans : forall (c_0: Instruction),
         forall (e_0: Environment), forall (e: Environment),
         (C[stack_length e_0](tau_code(c_0))) -> 
-        correct_stack e_0 -> correct_stack e -> correct_stack (Stack (c_0, e_0) e)
+        correct_stack_old e_0 -> correct_stack_old e -> correct_stack_old (Stack (c_0, e_0) e)
+.
+
+Fixpoint correct_stack (s: Stack_type) :=
+    match s with 
+    | Nil => True
+    | Stack (i, sp) spp =>
+        C[stack_length sp](tau_code i) /\ correct_stack sp /\ correct_stack spp
+    end
 .
 
 Print correct_stack.
@@ -95,31 +101,109 @@ Notation "CoS( s )" := (correct_state s).
 
 Definition correct_option_state (t: StateOption) :=
     match t with
-    | None => False
+    | None => True
     | Some s => CoS(s)
     end
 .
 
 Notation "CoSo( s )" := (correct_option_state(s)).
 
-Theorem correct_state_trans : forall (s1: State), forall (s2: State),
-    CoS(s1) -> step_kirvine s1 = Some s2 -> CoS(s2)
+Lemma stupid_2: forall (P: Prop), forall (Q: Prop),
+    P -> Q \/ P
 .
 Proof.
-    move => s1 s2 CoS_s1 s1_s2_rel.
-    induction s1.
-    destruct a.
-    unfold correct_state.
-    unfold correct_state in CoS_s1.
-    destruct s2. destruct p.
-    pose (s1 := Stack(i, e) b).
-    fold s1 in CoS_s1.
-    induction s1.
-    apply correct_trans.
-    destruct step_kirvine in s1_s2_rel.
-    contradict s1_s2_rel. intuition.
-    
+    intuition.
+Qed.
+
+Lemma stupid_3: forall (P: Prop), forall (Q: Prop),
+    P -> Q -> Q /\ P
+.
+Proof.
+    intuition.
+Qed.
+
+Lemma stupid_4: forall (s: State),
+    CoS(s) -> CoSo(Some s)
+.
+Proof.
+    intuition.
+Qed.
+
+Lemma stupid_5: forall (s: State), forall (r: State),
+    Some s = Some r -> s = r
+.
+Proof.
+    move => s r.
+    case. trivial.
+Qed.
+
+(* correct_trans : forall (c_0: Instruction),
+        forall (e_0: Environment), forall (e: Environment),
+        (C[stack_length e_0](tau_code(c_0))) -> 
+        correct_stack e_0 -> correct_stack e -> correct_stack (Stack (c_0, e_0) e)
+*)
+
+Lemma heredity_cos_0 : forall (i: Instruction), forall (e: Environment),
+    forall (s: Stack_type), forall (i_0: Instruction), forall (s_0: Stack_type),
+    CoS((i, Stack (i_0, s_0) e, s)) -> CoS((i, e, s))
+.
+Proof.
+    move => i e s i_0 s_0 H.
+    simpl in H. simpl. intuition.
+Admitted.
+
+Theorem correct_state_trans : forall (s1: State),
+    CoS(s1) -> CoSo(step_krivine s1)
+.
+Proof.
+    move => s1 CoS_s1.
+    destruct s1.
+    destruct p.
+    induction i.
+    simpl. case_eq n.
+    induction e.
+    simpl. trivial.
+    destruct p.
+    simpl. simpl in CoS_s1.
+    intuition.
+    move => n0 prop.
+    case_eq e.
+    simpl. trivial.
+    intuition.
+    simpl. simpl in CoS_s1. intuition. unfold max_var_smaller_n.
+    unfold max_var_smaller_n in H0. rewrite prop in H0. rewrite H in H0.
+    simpl in H0. simpl. lia.
+    rewrite H in H2.
+    simpl in H2.
+    intuition.
+
+    simpl.
+    case_eq s.
+    simpl. intuition.
+    intuition. simpl.
+    simpl in CoS_s1.
+    intuition.
+    unfold max_var_smaller_n. unfold max_var_smaller_n in H0.
+    assert (S (stack_length e) = (stack_length e) + 1). lia.
+    rewrite H1.
+    apply -> (aux_2_1 (tau_code i) (stack_length e) 0). exact H0.
+    rewrite H in H3. simpl in H3.
+    intuition.
+    rewrite H in H3. simpl in H3.
+    intuition.
+    rewrite H in H3. simpl in H3.
+    intuition.
+
+    simpl. simpl in CoS_s1. intuition. unfold max_var_smaller_n in H.
+    simpl in H.
+    destruct H.
+    exact H0.
+    simpl in H.
+    destruct H.
+    exact H.
+
+
 
     
 
-    
+

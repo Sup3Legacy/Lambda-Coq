@@ -22,7 +22,7 @@ Inductive StateOption :=
 .
 
 (* Question 3 *)
-Definition step_kirvine (state: State) : StateOption :=
+Definition step_krivine (state: State) : StateOption :=
     match state with
     | ((Access 0), Stack (c0, e0) _, s) => Some ((c0, e0, s))
     | ((Access (S n)), Stack (_, _) e, s) => Some (((Access n), e, s))
