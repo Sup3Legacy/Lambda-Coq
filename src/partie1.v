@@ -61,7 +61,7 @@ Notation "S( t )" := (~(protected t)).
 Notation "S[ n ]( t )" := (~(protected_n t n)).
 
 (* De Morgan *)
-Lemma destruct_false_or : forall (P: Prop), forall (Q: Prop),
+Lemma destruct_false_or : forall (P Q: Prop),
     ~(P \/ Q) <-> ~P /\ ~Q.
 Proof.
     intuition.
@@ -78,7 +78,7 @@ Proof.
     simpl. exact IHt.
 Qed. 
 
-Lemma lambda_equal : forall (t: DeBruijn), forall (u: DeBruijn),
+Lemma lambda_equal : forall (t u: DeBruijn),
     Lambda t = Lambda u -> t = u.
 Proof.
     intros t u.
@@ -109,7 +109,7 @@ Qed.
 
 (* Question 2 *)
 
-Fixpoint max_var_smaller_n_depth (t: DeBruijn) (n: nat) (depth: nat) : Prop :=
+Fixpoint max_var_smaller_n_depth (t: DeBruijn) (n depth: nat) : Prop :=
     match t with
     | Var v => v < n + depth
     | Lambda tp => max_var_smaller_n_depth tp n (depth + 1)
@@ -120,7 +120,7 @@ Fixpoint max_var_smaller_n_depth (t: DeBruijn) (n: nat) (depth: nat) : Prop :=
 Definition max_var_smaller_n (t: DeBruijn) (n: nat) : Prop := 
     max_var_smaller_n_depth t n 0.
 
-Lemma heredite_0: forall (t: DeBruijn), forall (n: nat), forall (d: nat),
+Lemma heredite_0: forall (t: DeBruijn), forall (n d: nat),
     (max_var_smaller_n_depth t n d) -> (max_var_smaller_n_depth t (n+1) d).
 Proof.
     move => t.
@@ -140,7 +140,7 @@ Qed.
     
 Notation "C[ n ]( t )" := (max_var_smaller_n t n).
 
-Lemma C_deprotect_aux : forall (t: DeBruijn), forall (n: nat), forall (d: nat),
+Lemma C_deprotect_aux : forall (t: DeBruijn), forall (n d: nat),
     max_var_smaller_n_depth t n d = max_var_smaller_n_depth (deprotect t) n d.
 Proof.
     move => t n.
@@ -243,7 +243,7 @@ Fixpoint substitution (t: DeBruijn) (index: nat) (u: DeBruijn) : DeBruijn :=
 
 Notation "t [ y <- u ]" := (deprotect (substitution t y u)) (at level 0).
 
-Lemma aux_0 : forall (n: nat), forall (n0: nat),
+Lemma aux_0 : forall (n n0: nat),
     C[n](Var n0) -> n > n0.
 Proof.
     intros n n0 H.
@@ -258,9 +258,7 @@ Proof.
     simpl in H. lia.
 Qed.
 
-
-(* Thanks a lot to Samuel Vivien! *)
-Lemma aux_0_0 : forall (n: nat), forall (n0: nat),
+Lemma aux_0_0 : forall (n n0: nat),
     n > n0 -> (Nat.eqb n0 n) = false.
 Proof.
     intros n n0 H.
@@ -269,7 +267,7 @@ Proof.
     lia.
 Qed.
 
-Lemma aux_0_1 : forall (n: nat), forall (n0: nat), forall (u: DeBruijn),
+Lemma aux_0_1 : forall (n n0: nat), forall (u: DeBruijn),
     C[n](Var n0) -> (if n0 =? n then u else Var n0) = Var n0.
 Proof.
     intros n n0 u H.
@@ -277,21 +275,21 @@ Proof.
     reflexivity.
 Qed.
 
-Lemma aux_1_0 : forall (t: DeBruijn), forall (u: DeBruijn),
+Lemma aux_1_0 : forall (t u: DeBruijn),
     u = t -> Lambda u = Lambda t.
 Proof.
     intros t u H.
     rewrite H. reflexivity.
 Qed.
 
-Lemma aux_1_1 : forall (t1: DeBruijn), forall (t2: DeBruijn), forall (u1: DeBruijn), forall (u2: DeBruijn),
+Lemma aux_1_1 : forall (t1 t2 u1 u2: DeBruijn),
     t1 = u1 -> t2 = u2 -> Application t1 t2 = Application u1 u2.
 Proof.
     intros t1 t2 u1 u2 H H0.
     rewrite H. rewrite H0. reflexivity.
 Qed.
 
-Lemma aux_2_0 : forall (t: DeBruijn), forall (n: nat), forall (d: nat),
+Lemma aux_2_0 : forall (t: DeBruijn), forall (n d: nat),
     max_var_smaller_n_depth t n (d + 1) <-> max_var_smaller_n_depth t (n + 1) d.
 Proof.
     move => t n d.
@@ -313,6 +311,7 @@ Proof.
     destruct H.
     apply IHt2 with (d := S n0). exact H0.
     simpl. exact IHt.
+
     revert d.
     induction t.
     move => d.
@@ -329,7 +328,7 @@ Proof.
     simpl. exact (IHt d).
 Qed.
 
-Lemma aux_2_1 : forall (t: DeBruijn), forall (n: nat), forall (d: nat),
+Lemma aux_2_1 : forall (t: DeBruijn), forall (n d: nat),
     max_var_smaller_n_depth (Lambda t) n d <-> max_var_smaller_n_depth t (n + 1) d.
 Proof.
     split.
@@ -345,6 +344,7 @@ Proof.
     destruct H.
     apply aux_2_0. exact H0.
     simpl. apply IHt. simpl in H. simpl. exact H.
+
     move => H.
     induction t.
     simpl. unfold max_var_smaller_n_depth in H.
@@ -365,23 +365,12 @@ Proof.
     simpl. apply aux_2_1. exact H.
 Qed.
 
-Lemma aux_3 : forall (t1: DeBruijn), forall (t2: DeBruijn), forall (n: nat),
+Lemma aux_3 : forall (t1 t2: DeBruijn), forall (n: nat),
     C[n](Application t1 t2) -> C[n](t1) /\ C[n](t2).
 Proof.
-    intros t1 t2 n H. 
-    split. 
-    unfold max_var_smaller_n. 
-    unfold max_var_smaller_n in H.
-    unfold max_var_smaller_n_depth in H.
-    destruct H.
-    fold max_var_smaller_n_depth in H.
-    exact H.
-    unfold max_var_smaller_n. 
-    unfold max_var_smaller_n in H.
-    unfold max_var_smaller_n_depth in H.
-    destruct H.
-    fold max_var_smaller_n_depth in H.
-    exact H0.
+    intros t1 t2 n H.
+    unfold max_var_smaller_n in H. unfold max_var_smaller_n_depth in H.
+    fold max_var_smaller_n_depth in H. trivial. 
 Qed.
 
 Lemma protect_aux_0 : forall (t: DeBruijn), forall (u: DeBruijn),
@@ -431,7 +420,6 @@ Proof.
     exact C.
 Qed.
 
-
 Theorem raw_substitution_aux : forall (t: DeBruijn), forall (n: nat), 
     C[n](t) -> forall (u: DeBruijn), substitution t n u = t.
 Proof.
@@ -443,11 +431,13 @@ Proof.
     move => n H u. simpl. apply aux_1_0. simpl.
     assert (C[n + 1](t)). apply aux_2_2. exact H. 
     apply (IHt (n + 1) H0 u).
+
     move => n H u. simpl. apply aux_3 in H.
     destruct H.
     rewrite (IHt1 n H u).
     rewrite (IHt2 n H0 u).
     reflexivity.
+
     move => n C u.
     simpl. reflexivity.
 Qed.
@@ -512,8 +502,7 @@ Proof.
     simpl. exact (contains_geq_n_heredite_1 t n).
 Qed.
 
-Lemma partial_safeness_application : forall (tp1: DeBruijn), forall (tp2: DeBruijn),
-    forall (n: nat),
+Lemma partial_safeness_application : forall (tp1 tp2: DeBruijn), forall (n: nat),
     S[n](Application tp1 tp2) -> (S[n](tp1)) /\ (S[n](tp2))
 .
 Proof.
@@ -609,7 +598,7 @@ Proof.
     apply not_contains_Cn. exact C. 
 Qed.
 
-Lemma stupid_0 : forall (n: nat), forall (n0: nat),
+Lemma stupid_0 : forall (n n0: nat),
     (n =? n0) = true <-> n = n0.
 Proof.
     intros n n0.
@@ -706,9 +695,7 @@ Proof.
     unfold substitution_multiple.
     unfold substitution_multiple_aux.
     reflexivity.
-    unfold substitution_multiple.
-    unfold substitution_multiple_aux. simpl.
-    assert (n + 1 + 1 = n + 2). lia. rewrite H0. reflexivity.
+    reflexivity.
 Qed.
 
 Theorem substitution_multiple_C_0 : forall (t: DeBruijn), forall (n: nat),
@@ -913,8 +900,7 @@ Proof.
 Qed.
 
 
-Lemma substitution_multiple_commut : forall (t: DeBruijn), forall (n: nat), forall (u1: DeBruijn), 
-    forall (u2 : DeBruijn),
+Lemma substitution_multiple_commut : forall (t: DeBruijn), forall (n: nat), forall (u1 u2: DeBruijn),
     S(t) -> C[n](u2) -> t[n <-- u1 :: u2 :: []] = t[n+1 <- u2][n <- u1].
 Proof.
     simpl.
@@ -1016,7 +1002,6 @@ Proof.
     move => n S Cm.
     simpl. rewrite (safe_deprotect t S). reflexivity.
 
-    
     assert (forall (t0: DeBruijn), S(t0) -> C[n](a) -> t0[n <-- u :: a :: []] = (t0[n + 1 <-- a :: []])[n <- u]).
     intros t0 H H0. apply substitution_multiple_commut. exact H. exact H0.
     move => S Cm.

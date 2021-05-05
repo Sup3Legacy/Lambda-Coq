@@ -53,10 +53,13 @@ Proof.
     intro t.
     induction t.
     trivial.
+    
     simpl. unfold tau_environment.
     simpl. assert (S(tau_code (Comp t))). apply (protected_tau (Comp t)).
     rewrite safe_deprotect. exact H.
-    reflexivity. simpl. 
+    reflexivity. 
+    
+    simpl. 
     unfold tau_environment.
     assert (tau_environment_aux Nil = []). auto.
     rewrite H. rewrite (substitution_multiple_nil). 
@@ -64,6 +67,7 @@ Proof.
     assert (S(tau_code (Comp t2))). apply (protected_tau (Comp t2)).
     assert (S(tau_code (Comp t1)) /\ S(tau_code (Comp t2))). intuition.
     unfold protected. intuition. reflexivity.
+
     simpl. unfold tau_environment.
     intuition.
 Qed.
@@ -108,6 +112,7 @@ Definition correct_option_state (t: StateOption) :=
 
 Notation "CoSo( s )" := (correct_option_state(s)).
 
+(*
 Lemma stupid_2: forall (P: Prop), forall (Q: Prop),
     P -> Q \/ P
 .
@@ -136,6 +141,7 @@ Proof.
     move => s r.
     case. trivial.
 Qed.
+*)
 
 Theorem state_trans : forall (s1: State),
     CoS(s1) -> CoSo(step_krivine s1)
@@ -145,47 +151,50 @@ Proof.
     destruct s1.
     destruct p.
     induction i.
-    simpl. case_eq n.
-    induction e.
-    simpl. trivial.
-    destruct p.
-    simpl. simpl in CoS_s1.
-    intuition.
-    move => n0 prop.
-    case_eq e.
-    simpl. trivial.
-    intuition.
-    simpl. simpl in CoS_s1. intuition. unfold max_var_smaller_n.
-    unfold max_var_smaller_n in H0. rewrite prop in H0. rewrite H in H0.
-    simpl in H0. simpl. lia.
-    rewrite H in H2.
-    simpl in H2.
-    intuition.
 
-    simpl.
-    case_eq s.
-    simpl. intuition.
-    intuition. simpl.
-    simpl in CoS_s1.
-    intuition.
-    unfold max_var_smaller_n. unfold max_var_smaller_n in H0.
-    assert (S (stack_length e) = (stack_length e) + 1). lia.
-    rewrite H1.
-    apply -> (aux_2_1 (tau_code i) (stack_length e) 0). exact H0.
-    rewrite H in H3. simpl in H3.
-    intuition.
-    rewrite H in H3. simpl in H3.
-    intuition.
-    rewrite H in H3. simpl in H3.
-    intuition.
+    +   simpl. case_eq n.
+        induction e.
+        *   simpl. trivial.
 
-    simpl. simpl in CoS_s1. intuition. unfold max_var_smaller_n in H.
-    simpl in H.
-    destruct H.
-    exact H0.
-    simpl in H.
-    destruct H.
-    exact H.
+        *   destruct p.
+            simpl. simpl in CoS_s1.
+            intuition.
+
+        *   move => n0 prop.
+            case_eq e.
+            -   simpl. trivial.
+            -   intuition.
+                simpl. simpl in CoS_s1. intuition. unfold max_var_smaller_n.
+                unfold max_var_smaller_n in H0. rewrite prop in H0. rewrite H in H0.
+                simpl in H0. simpl. lia.
+                rewrite H in H2.
+                simpl in H2.
+                intuition.
+
+    +   simpl.
+        case_eq s.
+        -   simpl. intuition.
+        
+        -   intuition. simpl.
+            simpl in CoS_s1.
+            intuition.
+            unfold max_var_smaller_n. unfold max_var_smaller_n in H0.
+            rewrite (inutile_1 (stack_length e)).
+            apply -> (aux_2_1 (tau_code i) (stack_length e) 0). exact H0.
+            rewrite H in H3. simpl in H3.
+            intuition.
+            rewrite H in H3. simpl in H3.
+            intuition.
+            rewrite H in H3. simpl in H3.
+            intuition.
+
+    +   simpl. simpl in CoS_s1. intuition. unfold max_var_smaller_n in H.
+        simpl in H.
+        destruct H.
+        exact H0.
+        simpl in H.
+        destruct H.
+        exact H.
 Qed.
 
 
