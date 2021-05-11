@@ -46,7 +46,7 @@ Proof.
     unfold tau_code in H. simpl in H. intuition.
 Qed.
 
-Theorem tau_comp_identity :
+Lemma tau_comp_identity_wtf :
     forall (t: DeBruijn), tau (CompState t) = tau_code (Comp t)
 .
 Proof.
@@ -70,6 +70,34 @@ Proof.
 
     simpl. unfold tau_environment.
     intuition.
+Qed.
+
+Theorem tau_compt_identity :
+    forall (t: DeBruijn), S(t) -> tau(CompState t) = t
+.
+Proof.
+    induction t.
+
+    simpl.
+    trivial.
+
+    simpl. unfold tau_environment. simpl. move => S.
+    assert (deprotect (tau_code (Comp t)) = tau_code (Comp t)).
+    apply safe_deprotect. apply protected_tau. rewrite H.
+    rewrite <- tau_comp_identity_wtf. rewrite IHt. exact S. reflexivity.
+
+    move => S. simpl in S. apply destruct_false_or in S. destruct S.
+    simpl. unfold tau_environment. simpl.
+    assert (deprotect (tau_code (Comp t1)) = tau_code (Comp t1)).
+    apply (safe_deprotect (tau_code (Comp t1))). apply protected_tau. rewrite H1.
+    clear H1.
+    assert (deprotect (tau_code (Comp t2)) = tau_code (Comp t2)).
+    apply (safe_deprotect (tau_code (Comp t2))). apply protected_tau. rewrite H1.
+    clear H1.
+    rewrite <- tau_comp_identity_wtf. rewrite IHt1. exact H. 
+    rewrite <- tau_comp_identity_wtf. rewrite IHt2. exact H0. reflexivity.
+
+    intuition. simpl in H. contradiction H. trivial.
 Qed.
 
 Fixpoint stack_length (e: Environment) :=
@@ -199,13 +227,70 @@ Qed.
 
 
 Theorem transition_beta : forall (s1 s2: State),
-    CoS(s1) -> step_krivine s1 = Some s2 -> ((tau s1) -b> (tau s2))
+    CoS(s1) -> step_krivine s1 = Some s2 -> 
+        (((tau s1) -b> (tau s2)) \/ ((tau s1) = (tau s2)))
 .
 Proof.
-    move => s1 s2 CoS_s1 step.
-    destruct s1.
-    destruct p.
+    induction s1. destruct a.
+    induction b. 
     induction i.
-    simpl.
-Admitted.
+    intuition.
+    case_eq n.
+    intuition.
+    simpl in H0. rewrite H1 in H0. simpl.
+    induction e.
+    discriminate.
+    simpl in IHe. destruct p.
+    assert ((i, s, Nil) = s2). admit.
+    rewrite <- H2. simpl. unfold tau_environment. simpl.
+    
+    assert ((substitution_multiple (Var 0) 1 (tau_environment_aux e)) = Var 0).
+    apply (substitution_multiple_C_0 (Var 0) 1). unfold max_var_smaller_n. simpl. lia.
+    unfold protected. intuition. lia.
+    rewrite H3. simpl.
+    assert (S((tau_code i) [0 <-- tau_environment_aux s])). apply deprotect_correction.
+    
+    assert (deprotect (tau_code i) [0 <-- tau_environment_aux s] =
+    (tau_code i) [0 <-- tau_environment_aux s]). apply safe_deprotect.
+    exact H4.
+    rewrite H5. intuition.
+
+    intuition. simpl.
+    simpl in H0.
+    rewrite H1 in H0.
+    induction e. discriminate.
+    destruct p. assert ((Access n0, e, Nil) = s2). admit.
+    rewrite <- H2.
+    case_eq e. intuition. rewrite H3 in IHe. simpl in IHe.
+    simpl. unfold tau_environment. simpl. simpl in H. intuition.
+    simpl. 
+
+    
+    
+    
+    
+    simpl in CoS_s1. simpl in step. simpl in IHe.
+    intuition.
+    case_eq n. intuition. rewrite H3 in step.
+    rewrite H3 in H0. destruct p. 
+    unfold tau_environment. simpl. intuition. 
+
+
+    induction i.
+    *   simpl.
+        induction s. simpl.
+        +   induction e.
+            -   simpl in step.
+                intuition. unfold tau_environment. simpl.
+                case_eq n. 
+                intuition. rewrite H in step. 
+                discriminate.
+
+                intuition. rewrite H in step. discriminate.
+            -   case_eq n.
+                intuition. rewrite H in CoS_s1. simpl in CoS_s1.
+                rewrite H in step. simpl in step. destruct p.
+                rewrite H in IHe. simpl in IHe. intuition.
+                
+        
     
