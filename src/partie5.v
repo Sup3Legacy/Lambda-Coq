@@ -171,7 +171,7 @@ Proof.
 Qed.
 *)
 
-Theorem state_trans : forall (s1: State),
+Lemma state_trans_aux : forall (s1: State),
     CoS(s1) -> CoSo(step_krivine s1)
 .
 Proof.
@@ -225,12 +225,58 @@ Proof.
         exact H.
 Qed.
 
+Theorem state_trans : forall (s1 s2: State),
+    CoS(s1) -> step_krivine s1 = Some s2 -> CoS(s2)
+.
+Proof.
+    move => s1 s2 CoS1 eq.
+    assert (CoSo(step_krivine s1)).
+    apply (state_trans_aux s1 CoS1).
+    rewrite eq in H.
+    simpl in H. exact H.
+Qed.
+
 
 Theorem transition_beta : forall (s1 s2: State),
     CoS(s1) -> step_krivine s1 = Some s2 -> 
         (((tau s1) -b> (tau s2)) \/ ((tau s1) = (tau s2)))
 .
 Proof.
+    intro s1; case s1; clear s1.
+    intro p; case p; clear p.
+    move => i e s.
+    intro s2; case s2; clear s2.
+    intro p; case p; clear p.
+    move => i0 e0 s0.
+    intro C. intro H.
+
+    inversion H.
+
+    case_eq i.
+    intuition. rewrite H0 in H1.
+    induction n.
+    simpl.
+
+    destruct s1.
+    destruct p.
+    induction i.
+    induction e.
+    induction s.
+    intuition. simpl. simpl in H0.
+    case_eq n. 
+    intuition. rewrite H1 in H0. discriminate.
+    intuition. rewrite H1 in H0. discriminate.
+    intuition.
+    simpl in H0.
+    case_eq n. 
+    intuition. rewrite H1 in H0. discriminate.
+    intuition. rewrite H1 in H0. discriminate.
+
+    intuition. simpl in H0. case_eq n.
+    intuition. rewrite H1 in H0. assert ((a, b, s) = s2). admit.
+    rewrite <- H2.
+    simpl. rewrite H1 in H. simpl in H.
+
     induction s1. destruct a.
     induction b. 
     induction i.
