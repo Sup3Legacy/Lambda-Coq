@@ -1,6 +1,8 @@
 Add LoadPath "." as CoqDirectory.
 Load partie4.
 
+(* 5.1 *)
+
 Fixpoint tau_code (t: Instruction) : DeBruijn :=
     match t with
     | (Access n)=> Var n
@@ -33,6 +35,8 @@ Fixpoint tau_aux (c: Instruction) (e: Environment) (s: Stack_type) : DeBruijn :=
 Definition tau : State -> DeBruijn :=
     (fun '(c, e, s) => tau_aux c e s)
 .
+
+(* 5.2 *)
 
 Lemma protected_tau :
     forall (c: Instruction), S(tau_code c)
@@ -99,6 +103,8 @@ Proof.
 
     intuition. simpl in H. contradiction H. trivial.
 Qed.
+
+(* 5.3 *)
 
 Fixpoint stack_length (e: Environment) :=
     match e with
@@ -235,6 +241,8 @@ Proof.
     rewrite eq in H.
     simpl in H. exact H.
 Qed.
+
+(* 5.4 *)
 
 
 Theorem transition_beta : forall (s1 s2: State),
