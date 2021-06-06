@@ -38,3 +38,14 @@ Definition is_state (s: StateOption) :=
     | Some _ => True
     end
 .
+
+Lemma some_truc : forall (s1 s2: State), 
+    Some s1 = Some s2 <-> s1 = s2
+.
+Proof.
+    move => s1 s2.
+    split.
+    case. trivial.
+    move => H.
+    rewrite H. reflexivity.
+Qed.

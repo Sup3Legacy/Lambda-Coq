@@ -244,9 +244,10 @@ Fixpoint substitution (t: DeBruijn) (index: nat) (u: DeBruijn) : DeBruijn :=
 Notation "t [ y <- u ]" := (deprotect (substitution t y u)) (at level 0).
 
 Lemma aux_0 : forall (n n0: nat),
-    C[n](Var n0) -> n > n0.
+    C[n](Var n0) <-> n > n0.
 Proof.
-    intros n n0 H.
+    intros n n0.
+    split. intro H.
     induction n.
     unfold max_var_smaller_n in H.
     unfold max_var_smaller_n_depth in H.
@@ -256,6 +257,9 @@ Proof.
     unfold max_var_smaller_n in IHn.
     unfold max_var_smaller_n_depth in IHn.
     simpl in H. lia.
+    intro H.
+    unfold max_var_smaller_n.
+    unfold max_var_smaller_n_depth. lia.
 Qed.
 
 Lemma aux_0_0 : forall (n n0: nat),
