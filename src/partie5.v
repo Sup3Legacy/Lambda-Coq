@@ -439,14 +439,22 @@ Proof.
 
     intuition.
     left.
-    
+    remember (tau_aux (Push i1 i2) e (Stack (a, b) s0)) as lol.
+    unfold tau_aux in Heqlol.
+    fold tau_aux in Heqlol.
+    rewrite Heqlol.
     
 
     (* Fin? *)
     unfold substitution_multiple_aux.     
 
     
-    simpl. simpl in CoS1. intuition.
+    simpl.
+    
+    
+    (* Marche vaguement jusqu'ici *)
+    
+    simpl in CoS1. intuition.
     unfold max_var_smaller_n in H0.
     unfold max_var_smaller_n_depth in H0. destruct H0.
     fold max_var_smaller_n_depth in H0.
