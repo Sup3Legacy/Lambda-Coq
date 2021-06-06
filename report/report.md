@@ -46,5 +46,7 @@ Notation "t [ n <-- l ]" := (deprotect (substitution_multiple t n l)) (at level 
 ```
 
 Notez que les notations sont conformes aux définitions usuelles car on "déprotège" les termes à la toute fin.
+La propriété `S(t)`, qui est souvent hypothèse des théorèmes, affirme que le terme `t` ne contient pas de `Protect`.
+Ainsi l'ajout du constructeur `Protect` ne change pas les théorèmes.
 
-Ce choix a facilité certaines preuves de la partie 1 mais cela a rendu les résultats de la partie 5 beaucoup plus durs à prouver...
+Ce choix a facilité certaines preuves de la partie 1 mais cela a rendu les résultats de la partie 5 beaucoup plus durs à prouver (ainsi que l'inversion de la subsitution multiple)...
