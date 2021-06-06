@@ -227,7 +227,7 @@ Proof.
 Qed.
 
 (* 5.4 *)
-
+(* Il nous manquait encore quelques lemmes sur la substitution parallèle *)
 Lemma substitution_multiple_lambda_aux : forall (t: DeBruijn), forall (u: list DeBruijn),
     (forall (n: nat),
     substitution_multiple_aux (Lambda t) n u = 
@@ -257,6 +257,8 @@ Proof.
     exact (substitution_multiple_lambda_aux t u n).
 Qed.
 
+(* Lemme (pour une fois) pas si stupide que ça. La propriété n'était pas TOTALEMENT évidente 
+(note de la rédaction: en fait si)*)
 Lemma stupide : forall (t1 t2: DeBruijn), forall (u: list DeBruijn), forall (n: nat),
     substitution_multiple_aux (Application t1 t2) n u =
     Application (substitution_multiple_aux t1 n u)
@@ -276,6 +278,16 @@ Proof.
     fold substitution in Heqtemp. rewrite Heqtemp. reflexivity.
 Qed.
 
+(* La preuve n'est pas menée jusqu'au bout. On a abandonné après pas mal de (~1000 lignes en tout)
+tentatives infructueuses. Je suppose que notre définition bizarre des termes nous a encore
+joué un tour.
+
+NB : on a modifié, en concertation avec plusieurs autress groupes, la signature du théorème.
+En effet, il s'avère que, dans certains cas, il n'y a pas une relation de beta-réduction
+entre les deux termes mais une relation d'égalité! Nous l'avons bien pris en compte
+lors de l'écriture de la signature du théorème.
+
+Pour avoir un échantillon des tentatives infructueuses, Cf tout en bas du fichier *)
 Theorem transition_beta : forall (s1: State),
     CoS(s1) -> forall (s2: State), (step_krivine s1 = Some s2 -> 
         (((tau s1) -b> (tau s2)) \/ ((tau s1) = (tau s2))))
@@ -434,10 +446,23 @@ Proof.
 
     
     simpl.
-    
+    admit.
+Admitted.
+
+(* 5.5 
+
+On n'est pas arrivés jusque-là mais on a quelques idées.
+Avec 5.3 et 5.4, on pourrait montrer sans trop de difficultés que la clôture transistive refléxive
+associée à la transition d'états de Krivine correspond exactement à celle de la beta-reduction. 
+Avec un peu plus de boulot, on pourrait peut-être montrer que si un terme est correct, 
+alors la réduction est finie (ceci n'est qu'une hypothèse) et boucle ensuite sur le même terme.
+
+*)
     
     (* Marche vaguement jusqu'ici *)
     
+    (* Une partie des tentatives infructueuses pour la 5.4 *)
+    (*
     simpl in CoS1. intuition.
     unfold max_var_smaller_n in H0.
     unfold max_var_smaller_n_depth in H0. destruct H0.
@@ -626,6 +651,6 @@ Proof.
                 intuition. rewrite H in CoS_s1. simpl in CoS_s1.
                 rewrite H in step. simpl in step. destruct p.
                 rewrite H in IHe. simpl in IHe. intuition.
-                
+*)
         
     
