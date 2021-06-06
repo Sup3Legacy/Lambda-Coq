@@ -1,6 +1,8 @@
 Add LoadPath "." as CoqDirectory.
 Load partie3.
 
+(* Rien à dire *)
+
 Fixpoint Comp (t: DeBruijn) : Instruction :=
     match t with
     | Lambda t => Grab (Comp t)

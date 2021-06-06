@@ -3,6 +3,9 @@ Load partie4.
 
 (* 5.1 *)
 
+(* Ces fonctions ont été pénbibles à faire. En effet, les conventions d'écriture
+divergent entre le sujet et Coq. On s'est trompés plusieurs fois (inversions des termes en
+compilant/décompilant des Applciation) *)
 Fixpoint tau_code (t: Instruction) : DeBruijn :=
     match t with
     | (Access n)=> Var n
@@ -38,6 +41,7 @@ Definition tau : State -> DeBruijn :=
 
 (* 5.2 *)
 
+(* Pas mal *)
 Lemma protected_tau :
     forall (c: Instruction), S(tau_code c)
 .
@@ -50,6 +54,7 @@ Proof.
     unfold tau_code in H. simpl in H. intuition.
 Qed.
 
+(* Lemme qui est apapremment utile, je ne me souviens plus trop *)
 Lemma tau_comp_identity_wtf :
     forall (t: DeBruijn), tau (CompState t) = tau_code (Comp t)
 .
@@ -76,6 +81,11 @@ Proof.
     intuition.
 Qed.
 
+(* Théorème plutôt pas mal :
+Il nous permet d'être sûr que notre définition de Comp et de Tau sont cohérentes
+entre elles. Elles peuvent être fausses par rapport à la définition du sujet mais au
+moins elles ont des erreurs qui font qu'elles sont cohérentes : la décompilation 
+d'un code compilé retourne bien exactement le code de départ. *)
 Theorem tau_compt_identity :
     forall (t: DeBruijn), S(t) -> tau(CompState t) = t
 .
@@ -137,6 +147,9 @@ Definition correct_state : State -> Prop :=
 
 Notation "CoS( s )" := (correct_state s).
 
+(* Ceci sert à définir le lemme `state_trans_aux` qui raisonen sur une option d'état.
+En effet, pour simplifier ce lemme, on ne se donne pas de condition sur "est-ce que la fonction
+`step_krivine` a renvoyé un état ou non". La distinction est faite dans le théorème après *)
 Definition correct_option_state (t: StateOption) :=
     match t with
     | None => True
@@ -146,43 +159,7 @@ Definition correct_option_state (t: StateOption) :=
 
 Notation "CoSo( s )" := (correct_option_state(s)).
 
-(*
-Lemma correct_step : forall (s1: State),
-    CoS(s1) -> (exists (s2: State), step_krivine s1 = Some s2)
-.
-*)
-
-(*
-Lemma stupid_2: forall (P: Prop), forall (Q: Prop),
-    P -> Q \/ P
-.
-Proof.
-    intuition.
-Qed.
-
-Lemma stupid_3: forall (P: Prop), forall (Q: Prop),
-    P -> Q -> Q /\ P
-.
-Proof.
-    intuition.
-Qed.
-
-Lemma stupid_4: forall (s: State),
-    CoS(s) -> CoSo(Some s)
-.
-Proof.
-    intuition.
-Qed.
-
-Lemma stupid_5: forall (s: State), forall (r: State),
-    Some s = Some r -> s = r
-.
-Proof.
-    move => s r.
-    case. trivial.
-Qed.
-*)
-
+(* Ceci a été un peu pénible à faire mais a finalement marché. *)
 Lemma state_trans_aux : forall (s1: State),
     CoS(s1) -> CoSo(step_krivine s1)
 .
@@ -237,6 +214,7 @@ Proof.
         exact H0.
 Qed.
 
+(* Théorème de 5.3. Simple application du lemme précédent. *)
 Theorem state_trans : forall (s1 s2: State),
     CoS(s1) -> step_krivine s1 = Some s2 -> CoS(s2)
 .
@@ -322,8 +300,8 @@ Proof.
     destruct p.
     assert ((i, s0, s) = s2).
     apply some_truc. exact eqs2.
-    rewrite <- H0. simpl. 
-    assert (tau_aux (Access 0) (Stack (i, s0) e) s = tau_aux i s0 s).
+    rewrite <- H0. simpl.
+    right. 
     case_eq s.
     intuition. unfold tau_aux.
     simpl.
@@ -344,7 +322,7 @@ Proof.
     rewrite H2. simpl. rewrite deprotect_involutive. reflexivity.
     rewrite H2. reflexivity.
 
-    right. exact H1.
+
 
     intuition.
     
@@ -371,7 +349,12 @@ Proof.
     destruct p.
     case_eq e.
     intuition.
-    admit. admit. admit.
+    remember ((Var (S n0)) [0 <-- tau_environment_aux (Stack (i, s0) (Stack (i0, s1) Nil))]).
+    admit.
+    intuition.
+    admit.
+    intuition. unfold tau_aux.
+    admit.
 
     left.
     assert (eqs2' := eqs2).
@@ -386,7 +369,7 @@ Proof.
     unfold tau.
     unfold tau_aux.
     induction s0.
-    intuition. simpl. unfold tau_environment.
+    simpl. unfold tau_environment.
     intuition. 
     (*remember (tau_environment_aux (Stack (a, b) e)) as H'.*)
     
@@ -395,10 +378,11 @@ Proof.
     remember (tau_code a) [0 <-- tau_environment_aux b] as truc.
     assert ((substitution_multiple (tau_code i) 1 (tau_environment_aux e))
         = (tau_code i)[1 <-- (tau_environment_aux e)]).
-    admit. (* Montrer qu'on peut bien inverser une substitution multiple *)
+    admit.
+    remember (tau_environment_aux e).
     rewrite H1. rewrite deprotect_involutive.
     apply Evaluation.
-
+    
     intuition.
     destruct p. intuition.
 

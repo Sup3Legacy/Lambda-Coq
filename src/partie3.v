@@ -1,7 +1,12 @@
 Add LoadPath "." as CoqDirectory.
 Load partie2.
 
+(* Cette partie met quelques notions en place, rien de très extravagant *)
+
 (* Question 2 *)
+(* NB : on a remplacé les blocs d(instruction par des listes chaînées directement
+embedded dans les termes car Coq refusait de définir certains opérateurs de point fixe
+car il n'arrivait pas à prouver leur terminaison *)
 Inductive Instruction :=
     | Access : nat -> Instruction
     | Grab : Instruction -> Instruction
@@ -39,6 +44,7 @@ Definition is_state (s: StateOption) :=
     end
 .
 
+(* Encore le même genre de lemme... *)
 Lemma some_truc : forall (s1 s2: State), 
     Some s1 = Some s2 <-> s1 = s2
 .
